@@ -182,12 +182,9 @@
                 <button onclick="jumpToPart('partB')">Part B</button>
                 <button onclick="jumpToPart('partC')">Part C</button>
             </div>
-            <div id="palette-container">
-                <h3>Question Palette</h3>
-                <div class="question-palette" id="palette-A"></div>
-                <div class="question-palette" id="palette-B"></div>
-                <div class="question-palette" id="palette-C"></div>
-            </div>
+            <div class="question-palette" id="palette-A"></div>
+            <div class="question-palette" id="palette-B"></div>
+            <div class="question-palette" id="palette-C"></div>
         </div>
     </div>
 </div>
@@ -380,7 +377,7 @@
     }
     function reviewSubmitQ(q,btn){
         document.querySelectorAll(`input[name="q${q}"]`).forEach(r=>r.disabled=true);
-        showReviewBox(q, "Marked for review and locked");
+        showReviewBox(q, "Review and Lock");
         let box = document.getElementById('reviewBox'+q);
         box.style.background = 'skyblue';
         box.style.color = 'var(--text)';
@@ -551,7 +548,7 @@
                     showReviewBox(q, "Submitted and locked. Your answer: " + (state.answers[q] || "Not Attempted"));
                     box.style.background = '#dcfce7'; box.style.color = 'var(--text)';
                 } else if (statusClasses.includes('green')) {
-                    showReviewBox(q, "Marked for review and locked");
+                    showReviewBox(q, "Review and Lock");
                     box.style.background = 'skyblue'; box.style.color = 'var(--text)';
                 } else if (statusClasses.includes('yellow')) {
                      showReviewBox(q, "Review");
@@ -600,14 +597,27 @@
 
     function setupPaletteObserver() {
         const observer = new IntersectionObserver((entries) => {
+            let bestEntry = null;
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    const part = entry.target.dataset.part;
-                    document.querySelectorAll('.question-palette').forEach(p => p.classList.remove('active'));
-                    document.getElementById(`palette-${part}`).classList.add('active');
+                    if (!bestEntry || entry.intersectionRatio > bestEntry.intersectionRatio) {
+                        bestEntry = entry;
+                    }
                 }
             });
-        }, { root: document.getElementById('omr'), threshold: 0.1 });
+
+            if (bestEntry) {
+                const part = bestEntry.target.dataset.part;
+                const paletteId = `palette-${part}`;
+                if (!document.getElementById(paletteId).classList.contains('active')) {
+                    document.querySelectorAll('.question-palette').forEach(p => p.classList.remove('active'));
+                    document.getElementById(paletteId).classList.add('active');
+                }
+            }
+        }, { 
+            root: document.getElementById('omr'), 
+            threshold: Array.from({length: 101}, (_, i) => i / 100)
+        });
 
         document.querySelectorAll('.omr h2').forEach(header => {
             observer.observe(header);
@@ -622,11 +632,11 @@
         buildQuestionPalette();
         loadQuizState();
         setupPaletteObserver();
+        document.getElementById('palette-A').classList.add('active');
     };
 
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
-
 
