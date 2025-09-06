@@ -6,14 +6,32 @@
     <title>CSIR NET OMR — Feb 2025 (Final)</title>
     <style>
         :root{
-            --bg:#f6f8fb;--card:#fff;--muted:#6b7280;--text:#0f172a;--accent:#2563eb;
-            --ok:#16a34a;--warn:#f59e0b;--yellow:#fbbf24;--green:#22d3ee;--bad:#ef4444
+            --bg:#f6f8fb;--card:#fff;--muted:#6b7280;--text:#0f172a;--accent:#6d28d9;
+            --ok:#16a34a;--warn:#f59e0b;--yellow:#fbbf24;--green:#22d3ee;--bad:#ef4444;
+            --answered: #a78bfa;
         }
         body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;margin:18px;background:var(--bg);color:var(--text);}
         .container{max-width:980px;margin:0 auto;background:var(--card);padding:18px;border-radius:10px;box-shadow:0 6px 18px rgba(16,24,40,0.06)}
         h1{margin:0 0 6px;font-size:20px}
         p.lead{margin:0 0 12px;color:var(--muted);font-size:14px}
-        h2{margin-top:14px;margin-bottom:6px;font-size:18px;color:var(--accent)}
+        h2, h3{margin-top:14px;margin-bottom:6px;font-size:18px;color:var(--accent)}
+        .omr h2 {
+            text-align: center;
+            color: white;
+            background-color: magenta;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
         .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
         button, a.button{padding:8px 10px;border-radius:8px;border:1px solid #e6eef8;background:#fff;cursor:pointer;font-weight:600;text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:8px}
         .primary{background:var(--accent);color:#fff;border-color:transparent}
@@ -23,9 +41,10 @@
         .yellow-btn{background:var(--yellow)!important;color:#fff!important;}
         .green-btn{background:var(--green)!important;color:#fff!important;}
         .red-btn{background:var(--bad)!important;color:#fff!important;}
-        .omr{border-top:1px solid #eef2f7;padding-top:12px;display:block;max-height:62vh;overflow:auto;padding-bottom:8px}
+        .omr{border-top:1px solid #eef2f7;padding-top:12px;display:block;max-height:55vh;overflow:auto;padding-bottom:8px}
         .row{display:flex;align-items:center;gap:10px;padding:6px;border-radius:6px;border:1px solid #f1f5f9;background:#fcfeff;margin-bottom:4px;flex-wrap:wrap;}
-        .qno{width:56px;text-align:center;font-weight:700;color:var(--accent);transition:background 0.2s, color 0.2s;}
+        .qno{width:56px;text-align:center;font-weight:700;color:blue;transition:background 0.2s, color 0.2s;}
+        .qno.answered{background:var(--answered);color:#fff;}
         .qno.blue{background:var(--ok);color:#fff;}
         .qno.yellow{background:var(--yellow);color:#fff;}
         .qno.green{background:var(--green);color:#fff;}
@@ -36,8 +55,51 @@
         .flag{margin-left:auto;font-size:12px;padding:6px 10px;border-radius:999px;background:var(--warn);color:#fff;display:none}
         .question-controls{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;}
         .review-box{background:#eef7ff;padding:7px 12px;border-radius:7px;font-size:14px;margin-top:4px;}
-        .summary{margin-top:12px;display:flex;gap:12px;flex-wrap:wrap}
+        .summary{margin-top:12px;display:none;gap:12px;flex-wrap:wrap}
         .summary .card{padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7;min-width:160px}
+        .part-summary {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 16px;
+            margin-bottom: 16px;
+            padding: 10px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #eef2f7;
+            flex-wrap: wrap;
+        }
+        .part-summary .card {
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: #fff;
+            font-size: 14px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            min-width: 120px;
+        }
+        .part-summary .card strong {
+            display: block;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+        .part-summary .card span {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        #student-info { padding: 10px; background-color: #f8fafc; border-radius: 8px; margin-bottom: 12px; font-size: 14px; border: 1px solid #eef2f7; }
+        #part-nav { display: flex; gap: 8px; margin-bottom: 12px; }
+        #part-nav button { flex: 1; background-color: magenta; color: white; border-color: magenta; }
+        .question-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; padding: 10px; margin-top: 16px; margin-bottom: 24px; border: 1px solid #eef2f7; border-radius: 8px; }
+        .palette-item { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #fff; }
+        .palette-item.answered { background-color: var(--answered); color: #fff; border-color: var(--answered); }
+        .palette-item.blue { background-color: var(--ok); color: #fff; border-color: var(--ok); }
+        .palette-item.yellow { background-color: var(--yellow); color: #fff; border-color: var(--yellow); }
+        .palette-item.green { background-color: var(--green); color: #fff; border-color: var(--green); }
+        
         .result{margin-top:12px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7}
         #responseSheet{margin-top:16px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7;display:none}
         #responseSheet .qline{margin-bottom:6px;font-size:14px}
@@ -45,20 +107,15 @@
         #responseSheet .correct{background:var(--ok);color:#fff;border-color:var(--ok)}
         #responseSheet .wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
         #sendMailBtn {margin-top:18px;padding:11px 20px;font-size:18px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;}
-        #emailOverlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(246,248,251, 0.96); z-index: 9999; display: flex; align-items: center; justify-content: center;
-        }
-        #emailBox {
-            background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 2px 10px #0002; max-width: 320px; width: 100%; text-align: center;
-        }
+        #emailOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(246,248,251, 0.96); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        #emailBox { background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 2px 10px #0002; max-width: 320px; width: 100%; text-align: center; }
         #emailBox input { width: 90%; margin-top: 10px; padding: 8px; font-size: 16px;}
         #emailBox button { margin-top: 16px; width: 100%; }
         #emailBox .error { color: var(--bad); margin-top: 8px; }
         @media print{
             body{background:white;margin:0}
             .container{box-shadow:none;border-radius:0;padding:8px;max-width:100%}
-            .controls, .summary, .omr, #timer, #sendMailBtn{display:none}
+            .controls, .summary, .omr, #timer, #sendMailBtn, .part-summary, #part-nav, .question-palette {display:none}
             #responseSheet{display:block !important}
             #emailOverlay{display:none !important;}
         }
@@ -74,11 +131,18 @@
         <div class="error" id="overlayError" style="display:none;"></div>
     </div>
 </div>
-<div class="container">
+<div class="container" style="display:none;">
     <h1>CSIR NET — OMR Style (Feb 2025 Key)</h1>
     <p class="lead">Attempt limits: Part A ≤ 15, Part B ≤ 25, Part C ≤ 30. Negative marking: 1/4.</p>
-    <div id="timer" style="font-size:16px;font-weight:bold;color:#2563eb;margin-bottom:12px;">
+    <div id="student-info"></div>
+    <div id="notification" style="display: none; padding: 10px; margin-bottom: 12px; border-radius: 8px; color: white; font-weight: bold; text-align: center;"></div>
+    <div id="timer" style="font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:12px;">
         Time Left: <span id="timeDisplay">03:00:00</span>
+    </div>
+    <div id="part-nav">
+        <button onclick="jumpToPart('partA')">Part A</button>
+        <button onclick="jumpToPart('partB')">Part B</button>
+        <button onclick="jumpToPart('partC')">Part C</button>
     </div>
     <div class="controls">
         <button id="clearAll" class="ghost">Clear All</button>
@@ -88,18 +152,27 @@
         <button id="pdfBtn" class="ghost">Download PDF</button>
     </div>
     <div class="omr" id="omr">
-        <h2>Part A</h2>
+        <h2 id="partAHeading">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Part A
+        </h2>
         <div id="partA"></div>
-        <h2>Part B</h2>
+        <div class="question-palette" id="palette-A"></div>
+        <div class="part-summary" id="partASummary"></div>
+        <h2 id="partBHeading">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Part B
+        </h2>
         <div id="partB"></div>
-        <h2>Part C</h2>
+        <div class="question-palette" id="palette-B"></div>
+        <div class="part-summary" id="partBSummary"></div>
+        <h2 id="partCHeading">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Part C
+        </h2>
         <div id="partC"></div>
-    </div>
-    <div class="summary">
-        <div class="card"><strong>Attempted A</strong><div id="countA">0</div></div>
-        <div class="card"><strong>Attempted B</strong><div id="countB">0</div></div>
-        <div class="card"><strong>Attempted C</strong><div id="countC">0</div></div>
-        <div class="card"><strong>Marked Review</strong><div id="countReview">0</div></div>
+        <div class="question-palette" id="palette-C"></div>
+        <div class="part-summary" id="partCSummary"></div>
     </div>
     <div id="resultPane" class="result" style="display:none"></div>
     <div id="responseSheet"></div>
@@ -108,6 +181,8 @@
     </div>
 </div>
 <script>
+    const QUIZ_STATE_KEY = 'csirQuizState';
+
     function showQuiz() {
         var name = document.getElementById('userName').value.trim();
         var email = document.getElementById('userEmail').value.trim();
@@ -124,8 +199,14 @@
         }
         errorBox.style.display = "none";
         document.getElementById('emailOverlay').style.display = "none";
+        document.querySelector('.container').style.display = 'block';
+
         window.quizUserEmail = email;
         window.quizUserName = name;
+        document.getElementById('student-info').innerHTML = `<strong>Name:</strong> ${name} | <strong>Email:</strong> ${email}`;
+        
+        startTimer();
+        saveQuizState();
     }
 </script>
 <script>
@@ -144,6 +225,7 @@
     const mapNumToLetter={1:'A',2:'B',3:'C',4:'D'};
     const answerKey={};for(const q in numericKey){answerKey[q]=mapNumToLetter[numericKey[q]];}
     let reviewOnlyQs = {};
+
     function buildSection(start, end, containerId){
         const container = document.getElementById(containerId);
         for(let q=start; q<=end; q++){
@@ -157,6 +239,7 @@
                     let radios = document.querySelectorAll(`input[name="q${q}"]`);
                     radios.forEach(r=>{r.checked=false;});
                     setQnoColor(q,null);
+                    saveQuizState();
                 };
                 bubbles.appendChild(lbl);
             });
@@ -171,15 +254,24 @@
                 <div class="review-box" id="reviewBox${q}" style="display:none;"></div>
             `;
             row.appendChild(qControls);
-            const flag=document.createElement('div');flag.className='flag';flag.textContent='REVIEW';row.appendChild(flag);
             container.appendChild(row);
         }
     }
-    buildSection(PART_A.start, PART_A.end, 'partA');
-    buildSection(PART_B.start, PART_B.end, 'partB');
-    buildSection(PART_C.start, PART_C.end, 'partC');
+    
     let totalSeconds = 180 * 60;
+    let timerInterval;
     const timeDisplay = document.getElementById('timeDisplay');
+
+    function showNotification(message, type = 'info') {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.style.backgroundColor = (type === 'error') ? 'var(--bad)' : 'var(--accent)';
+        notification.style.display = 'block';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 3000); // Hide after 3 seconds
+    }
+
     function formatTime(sec){
         let hrs = Math.floor(sec / 3600);
         let mins = Math.floor((sec % 3600) / 60);
@@ -189,73 +281,133 @@
     function updateTimer(){
         if(totalSeconds <= 0){
             clearInterval(timerInterval);
-            alert("Time is up! The exam will be submitted automatically.");
+            showNotification("Time is up! The exam will be submitted automatically.", 'info');
             document.getElementById('submitBtn').click();
             return;
         }
         timeDisplay.textContent = formatTime(totalSeconds);
         totalSeconds--;
+        if (totalSeconds % 5 === 0) {
+            saveQuizState();
+        }
     }
-    const timerInterval = setInterval(updateTimer,1000);
-    updateTimer();
+    function startTimer() {
+        if (!timerInterval) {
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+    }
+    
     function countInRange(s,e){let c=0;for(let q=s;q<=e;q++){if(document.querySelector(`input[name="q${q}"]:checked`))c++;}return c;}
+    
+    function countStatusInRange(start, end, statusClass) {
+        let count = 0;
+        for (let q = start; q <= end; q++) {
+            if (document.querySelector(`.row[data-q="${q}"] .qno.${statusClass}`)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    function updatePartSummary(partConfig, containerId) {
+        const attempted = countInRange(partConfig.start, partConfig.end);
+        const markedReview = countStatusInRange(partConfig.start, partConfig.end, 'yellow');
+        const lockedReview = countStatusInRange(partConfig.start, partConfig.end, 'green');
+        
+        const container = document.getElementById(containerId);
+        container.innerHTML = `
+            <div class="card"><strong>Attempted</strong><span>${attempted}</span></div>
+            <div class="card"><strong>Marked Review</strong><span>${markedReview}</span></div>
+            <div class="card"><strong>Locked Review</strong><span>${lockedReview}</span></div>
+        `;
+    }
+
     function updateCounts(){
-        document.getElementById('countA').textContent=countInRange(PART_A.start,PART_A.end);
-        document.getElementById('countB').textContent=countInRange(PART_B.start,PART_B.end);
-        document.getElementById('countC').textContent=countInRange(PART_C.start,PART_C.end);
-        document.getElementById('countReview').textContent=document.querySelectorAll('.flag[style*="inline"]').length;
+        updatePartSummary(PART_A, 'partASummary');
+        updatePartSummary(PART_B, 'partBSummary');
+        updatePartSummary(PART_C, 'partCSummary');
     }
     document.body.addEventListener('change',(e)=>{
         if(e.target.type!=='radio')return;
         const q=parseInt(e.target.name.slice(1),10);
         let cfg=(q<=20?PART_A:(q<=60?PART_B:PART_C));
-        if(countInRange(cfg.start,cfg.end)>cfg.maxAttempt){e.target.checked=false;alert('Limit reached');}
-        updateCounts();
-        setQnoColor(q, null); // Reset color when selection is changed
+        if(countInRange(cfg.start,cfg.end)>cfg.maxAttempt){
+            e.target.checked=false;
+            showNotification('Attempt limit reached for this section.', 'error');
+        }
+        setQnoColor(q, 'answered');
+        saveQuizState();
     });
+
+    function updatePaletteColor(q, colorClass) {
+        const paletteItem = document.getElementById(`q-palette-${q}`);
+        if (paletteItem) {
+            paletteItem.className = 'palette-item'; // Reset classes
+            if (colorClass) {
+                paletteItem.classList.add(colorClass);
+            }
+        }
+    }
+
     function setQnoColor(q, colorClass) {
         let qno = document.querySelector(`.row[data-q="${q}"] .qno`);
-        qno.classList.remove("blue","yellow","green","red");
+        qno.classList.remove("answered", "blue","yellow","green","red");
         if(colorClass) qno.classList.add(colorClass);
+        updatePaletteColor(q, colorClass);
+        updateCounts();
     }
     function submitQ(q,btn){
         document.querySelectorAll(`input[name="q${q}"]`).forEach(r=>r.disabled=true);
-        showReviewBox(q, "Submitted and locked. Your answer: "+(getSelected(q)||"Not Attempted"), true);
+        showReviewBox(q, "Submitted and locked. Your answer: "+(getSelected(q)||"Not Attempted"));
+        let box = document.getElementById('reviewBox'+q);
+        box.style.background = '#dcfce7'; // Light green
+        box.style.color = 'var(--text)';
         setQnoColor(q,"blue");
         reviewOnlyQs[q] = false;
+        saveQuizState();
     }
     function reviewSubmitQ(q,btn){
         document.querySelectorAll(`input[name="q${q}"]`).forEach(r=>r.disabled=true);
-        showReviewBox(q, "Marked for review and locked. Your answer: "+(getSelected(q)||"Not Attempted"), true);
-        setQnoColor(q,"green");
+        showReviewBox(q, "Marked for review and locked");
+        let box = document.getElementById('reviewBox'+q);
+        box.style.background = 'skyblue';
+        box.style.color = 'var(--text)';
+        setQnoColor(q,"green"); 
         reviewOnlyQs[q] = false;
+        saveQuizState();
     }
     function reviewQ(q,btn){
-        showReviewBox(q, "Current answer: "+(getSelected(q)||"Not Attempted"), false);
+        showReviewBox(q, "Review");
+        let box = document.getElementById('reviewBox'+q);
+        box.style.background = '#fef9c3'; // Light yellow
+        box.style.color = 'var(--text)';
         setQnoColor(q,"yellow");
         reviewOnlyQs[q] = true;
+        saveQuizState();
     }
     function clearQ(q,btn){
         document.querySelectorAll(`input[name="q${q}"]`).forEach(r=>{r.checked=false;r.disabled=false;});
-        showReviewBox(q, "Selection cleared. You can now reattempt.", false);
+        showReviewBox(q, "Selection cleared. You can now reattempt.");
+        let box = document.getElementById('reviewBox'+q);
+        box.style.background = '#eef7ff';
+        box.style.color = 'var(--text)';
         setQnoColor(q,null);
         reviewOnlyQs[q] = false;
+        saveQuizState();
     }
     function getSelected(q){
         let sel=document.querySelector(`input[name="q${q}"]:checked`);
         return sel?sel.value:null;
     }
-    function showReviewBox(q, msg, locked){
+    function showReviewBox(q, msg){
         let box=document.getElementById('reviewBox'+q);
         box.style.display='';
         box.innerHTML=msg;
-        if(locked) box.style.background='#e0ffe0';
-        else box.style.background='#eef7ff';
     }
     function scorePart(cfg){
         let correct=0,wrong=0,unattempted=0,score=0;
         for(let q=cfg.start;q<=cfg.end;q++){
-            if(reviewOnlyQs[q]) continue; // SKIP review only
+            if(reviewOnlyQs[q]) continue;
             const sel=document.querySelector(`input[name="q${q}"]:checked`);
             if(!sel){unattempted++;continue;}
             if(sel.value===answerKey[q]){correct++;score+=cfg.marks;}else{wrong++;score-=cfg.marks*NEG_FRAC;}
@@ -263,6 +415,8 @@
         return{correct,wrong,unattempted,score};
     }
     document.getElementById('submitBtn').onclick=()=>{
+        clearInterval(timerInterval);
+        localStorage.removeItem(QUIZ_STATE_KEY);
         var userEmail = window.quizUserEmail || "unknown";
         var userName = window.quizUserName || "unknown";
         const rA=scorePart(PART_A),rB=scorePart(PART_B),rC=scorePart(PART_C);
@@ -300,7 +454,7 @@
             htmlLine+='</div>';
             sheet.innerHTML+=htmlLine;
         }
-        let mailto = "mailto:YOUR_EMAIL@gmail.com?subject=" +
+        let mailto = "mailto:teacher@example.com?subject=" +
             encodeURIComponent("Quiz Response from " + userName) +
             "&body=" + encodeURIComponent(responseText);
         document.getElementById('sendMailBtn').href = mailto;
@@ -318,9 +472,129 @@
         res.forEach(r=>{doc.text(r,10,y);y+=6;});
         y+=6;doc.text("Response Sheet:",10,y);y+=8;
         const lines=document.querySelectorAll('#responseSheet .qline');
-        lines.forEach(line=>{doc.text(line.innerText,10,y);y+=6;if(y>280){doc.addPage();y=10;}});
+        lines.forEach(line=>{doc.text(line.innerText,10,y);y+=6;if(y>280){doc.addPage();y+=10;}});
         doc.save('response_sheet.pdf');
     };
+
+    function saveQuizState() {
+        if (!window.quizUserName) return; 
+
+        const state = {
+            userName: window.quizUserName,
+            userEmail: window.quizUserEmail,
+            timeLeft: totalSeconds,
+            answers: {},
+            qStates: {},
+            reviewOnly: reviewOnlyQs
+        };
+
+        for (let q = 1; q <= 120; q++) {
+            const selected = getSelected(q);
+            if (selected) {
+                state.answers[q] = selected;
+            }
+            const qnoEl = document.querySelector(`.row[data-q="${q}"] .qno`);
+            const classList = qnoEl.className.split(' ');
+            const status = classList.filter(c => c !== 'qno').join(' ');
+
+            if(status) {
+                state.qStates[q] = { 
+                    status: status, 
+                    disabled: document.querySelector(`input[name="q${q}"]`).disabled 
+                };
+            }
+        }
+        localStorage.setItem(QUIZ_STATE_KEY, JSON.stringify(state));
+    }
+
+    function loadQuizState() {
+        const savedStateJSON = localStorage.getItem(QUIZ_STATE_KEY);
+        if (!savedStateJSON) return;
+
+        const state = JSON.parse(savedStateJSON);
+        if (!state.userName) return;
+
+        window.quizUserName = state.userName;
+        window.quizUserEmail = state.userEmail;
+        document.getElementById('student-info').innerHTML = `<strong>Name:</strong> ${state.userName} | <strong>Email:</strong> ${state.userEmail}`;
+
+
+        totalSeconds = state.timeLeft;
+
+        reviewOnlyQs = state.reviewOnly || {};
+        for (let q = 1; q <= 120; q++) {
+            if (state.answers[q]) {
+                document.querySelector(`input[name="q${q}"][value="${state.answers[q]}"]`).checked = true;
+            }
+            if (state.qStates[q]) {
+                setQnoColor(q, state.qStates[q].status);
+                if (state.qStates[q].disabled) {
+                    document.querySelectorAll(`input[name="q${q}"]`).forEach(r => r.disabled = true);
+                }
+                
+                let box = document.getElementById('reviewBox'+q);
+                let statusClasses = state.qStates[q].status.split(' ');
+                
+                if (statusClasses.includes('blue')) {
+                    showReviewBox(q, "Submitted and locked. Your answer: " + (state.answers[q] || "Not Attempted"));
+                    box.style.background = '#dcfce7'; box.style.color = 'var(--text)';
+                } else if (statusClasses.includes('green')) {
+                    showReviewBox(q, "Marked for review and locked");
+                    box.style.background = 'skyblue'; box.style.color = 'var(--text)';
+                } else if (statusClasses.includes('yellow')) {
+                     showReviewBox(q, "Review");
+                    box.style.background = '#fef9c3'; box.style.color = 'var(--text)';
+                }
+            }
+        }
+
+        document.getElementById('emailOverlay').style.display = 'none';
+        document.querySelector('.container').style.display = 'block';
+        updateCounts();
+        startTimer();
+    }
+    
+    function buildQuestionPalette() {
+        const createPalette = (partConfig, containerId) => {
+            const palette = document.getElementById(containerId);
+            for (let i = partConfig.start; i <= partConfig.end; i++) {
+                const item = document.createElement('div');
+                item.className = 'palette-item';
+                item.textContent = i;
+                item.id = `q-palette-${i}`;
+                item.onclick = () => jumpToQuestion(i);
+                palette.appendChild(item);
+            }
+        };
+
+        createPalette(PART_A, 'palette-A');
+        createPalette(PART_B, 'palette-B');
+        createPalette(PART_C, 'palette-C');
+    }
+
+    function jumpToQuestion(q) {
+        const questionRow = document.querySelector(`.row[data-q="${q}"]`);
+        if (questionRow) {
+            questionRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    function jumpToPart(partId) {
+        const partHeading = document.getElementById(partId + 'Heading');
+        if (partHeading) {
+            partHeading.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    // --- Initial Load ---
+    window.onload = function() {
+        buildSection(PART_A.start, PART_A.end, 'partA');
+        buildSection(PART_B.start, PART_B.end, 'partB');
+        buildSection(PART_C.start, PART_C.end, 'partC');
+        buildQuestionPalette();
+        loadQuizState();
+    };
+
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
