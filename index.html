@@ -11,7 +11,10 @@
             --answered: #a78bfa;
         }
         body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;margin:18px;background:var(--bg);color:var(--text);}
-        .container{max-width:980px;margin:0 auto;background:var(--card);padding:18px;border-radius:10px;box-shadow:0 6px 18px rgba(16,24,40,0.06)}
+        .container{max-width:1280px;margin:0 auto;background:var(--card);padding:18px;border-radius:10px;box-shadow:0 6px 18px rgba(16,24,40,0.06)}
+        .quiz-layout { display: flex; gap: 24px; align-items: flex-start; }
+        .main-content { flex: 1; }
+        .right-sidebar { width: 320px; position: sticky; top: 18px; }
         h1{margin:0 0 6px;font-size:20px}
         p.lead{margin:0 0 12px;color:var(--muted);font-size:14px}
         h2, h3{margin-top:14px;margin-bottom:6px;font-size:18px;color:var(--accent)}
@@ -41,7 +44,7 @@
         .yellow-btn{background:var(--yellow)!important;color:#fff!important;}
         .green-btn{background:var(--green)!important;color:#fff!important;}
         .red-btn{background:var(--bad)!important;color:#fff!important;}
-        .omr{border-top:1px solid #eef2f7;padding-top:12px;display:block;max-height:55vh;overflow:auto;padding-bottom:8px}
+        .omr{border-top:1px solid #eef2f7;padding-top:12px;display:block;height:75vh;overflow:auto;padding-right: 10px;}
         .row{display:flex;align-items:center;gap:10px;padding:6px;border-radius:6px;border:1px solid #f1f5f9;background:#fcfeff;margin-bottom:4px;flex-wrap:wrap;}
         .qno{width:56px;text-align:center;font-weight:700;color:blue;transition:background 0.2s, color 0.2s;}
         .qno.answered{background:var(--answered);color:#fff;}
@@ -55,8 +58,6 @@
         .flag{margin-left:auto;font-size:12px;padding:6px 10px;border-radius:999px;background:var(--warn);color:#fff;display:none}
         .question-controls{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;}
         .review-box{background:#eef7ff;padding:7px 12px;border-radius:7px;font-size:14px;margin-top:4px;}
-        .summary{margin-top:12px;display:none;gap:12px;flex-wrap:wrap}
-        .summary .card{padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7;min-width:160px}
         .part-summary {
             display: flex;
             gap: 10px;
@@ -91,15 +92,16 @@
             color: var(--accent);
         }
         #student-info { padding: 10px; background-color: #f8fafc; border-radius: 8px; margin-bottom: 12px; font-size: 14px; border: 1px solid #eef2f7; }
-        #part-nav { display: flex; gap: 8px; margin-bottom: 12px; }
+        #part-nav { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         #part-nav button { flex: 1; background-color: magenta; color: white; border-color: magenta; }
-        .question-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; padding: 10px; margin-top: 16px; margin-bottom: 24px; border: 1px solid #eef2f7; border-radius: 8px; }
+        .question-palette { display: none; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; padding: 10px; margin-top: 16px; border: 1px solid #eef2f7; border-radius: 8px; }
+        .question-palette.active { display: grid; }
         .palette-item { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #fff; }
         .palette-item.answered { background-color: var(--answered); color: #fff; border-color: var(--answered); }
         .palette-item.blue { background-color: var(--ok); color: #fff; border-color: var(--ok); }
         .palette-item.yellow { background-color: var(--yellow); color: #fff; border-color: var(--yellow); }
         .palette-item.green { background-color: var(--green); color: #fff; border-color: var(--green); }
-
+        
         .result{margin-top:12px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7}
         #responseSheet{margin-top:16px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7;display:none}
         #responseSheet .qline{margin-bottom:6px;font-size:14px}
@@ -115,7 +117,7 @@
         @media print{
             body{background:white;margin:0}
             .container{box-shadow:none;border-radius:0;padding:8px;max-width:100%}
-            .controls, .summary, .omr, #timer, #sendMailBtn, .part-summary, #part-nav, .question-palette {display:none}
+            .controls, .summary, .omr, #timer, #sendMailBtn, .part-summary, #part-nav, .question-palette, .right-sidebar {display:none}
             #responseSheet{display:block !important}
             #emailOverlay{display:none !important;}
         }
@@ -132,54 +134,64 @@
     </div>
 </div>
 <div class="container" style="display:none;">
-    <h1>CSIR NET — OMR Style (Feb 2025 Key)</h1>
-    <p class="lead">Attempt limits: Part A ≤ 15, Part B ≤ 25, Part C ≤ 30. Negative marking: 1/4.</p>
-    <div id="student-info"></div>
-    <div id="notification" style="display: none; padding: 10px; margin-bottom: 12px; border-radius: 8px; color: white; font-weight: bold; text-align: center;"></div>
-    <div id="timer" style="font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:12px;">
-        Time Left: <span id="timeDisplay">03:00:00</span>
-    </div>
-    <div id="part-nav">
-        <button onclick="jumpToPart('partA')">Part A</button>
-        <button onclick="jumpToPart('partB')">Part B</button>
-        <button onclick="jumpToPart('partC')">Part C</button>
-    </div>
-    <div class="controls">
-        <button id="clearAll" class="ghost">Clear All</button>
-        <button id="markAllReview" class="ghost">Mark All Review</button>
-        <button id="submitBtn" class="primary">Submit & Evaluate</button>
-        <button id="printBtn" class="ghost">Print</button>
-        <button id="pdfBtn" class="ghost">Download PDF</button>
-    </div>
-    <div class="omr" id="omr">
-        <h2 id="partAHeading">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            Part A
-        </h2>
-        <div id="partA"></div>
-        <div class="question-palette" id="palette-A"></div>
-        <div class="part-summary" id="partASummary"></div>
-        <h2 id="partBHeading">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            Part B
-        </h2>
-        <div id="partB"></div>
-        <div class="question-palette" id="palette-B"></div>
-        <div class="part-summary" id="partBSummary"></div>
-        <h2 id="partCHeading">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            Part C
-        </h2>
-        <div id="partC"></div>
-        <div class="question-palette" id="palette-C"></div>
-        <div class="part-summary" id="partCSummary"></div>
-    </div>
-    <div id="resultPane" class="result" style="display:none"></div>
-    <div id="responseSheet"></div>
-    <div id="sendMailArea" style="display:none;text-align:center;">
-        <a id="sendMailBtn" href="#" target="_blank">Send Response Sheet to Teacher</a>
+    <div class="quiz-layout">
+        <div class="main-content">
+            <h1>CSIR NET — OMR Style (Feb 2025 Key)</h1>
+            <p class="lead">Attempt limits: Part A ≤ 15, Part B ≤ 25, Part C ≤ 30. Negative marking: 1/4.</p>
+             <div class="controls">
+                <button id="clearAll" class="ghost">Clear All</button>
+                <button id="markAllReview" class="ghost">Mark All Review</button>
+                <button id="submitBtn" class="primary">Submit & Evaluate</button>
+                <button id="printBtn" class="ghost">Print</button>
+                <button id="pdfBtn" class="ghost">Download PDF</button>
+            </div>
+            <div class="omr" id="omr">
+                <h2 id="partAHeading" data-part="A">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part A
+                </h2>
+                <div id="partA"></div>
+                <div class="part-summary" id="partASummary"></div>
+                <h2 id="partBHeading" data-part="B">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part B
+                </h2>
+                <div id="partB"></div>
+                <div class="part-summary" id="partBSummary"></div>
+                <h2 id="partCHeading" data-part="C">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part C
+                </h2>
+                <div id="partC"></div>
+                <div class="part-summary" id="partCSummary"></div>
+            </div>
+            <div id="resultPane" class="result" style="display:none"></div>
+            <div id="responseSheet"></div>
+            <div id="sendMailArea" style="display:none;text-align:center;">
+                <a id="sendMailBtn" href="#" target="_blank">Send Response Sheet to Teacher</a>
+            </div>
+        </div>
+        <div class="right-sidebar">
+            <div id="student-info"></div>
+            <div id="notification" style="display: none; padding: 10px; margin-bottom: 12px; border-radius: 8px; color: white; font-weight: bold; text-align: center;"></div>
+            <div id="timer" style="font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:12px;">
+                Time Left: <span id="timeDisplay">03:00:00</span>
+            </div>
+            <div id="part-nav">
+                <button onclick="jumpToPart('partA')">Part A</button>
+                <button onclick="jumpToPart('partB')">Part B</button>
+                <button onclick="jumpToPart('partC')">Part C</button>
+            </div>
+            <div id="palette-container">
+                <h3>Question Palette</h3>
+                <div class="question-palette" id="palette-A"></div>
+                <div class="question-palette" id="palette-B"></div>
+                <div class="question-palette" id="palette-C"></div>
+            </div>
+        </div>
     </div>
 </div>
+
 <script>
     const QUIZ_STATE_KEY = 'csirQuizState';
 
@@ -204,7 +216,7 @@
         window.quizUserEmail = email;
         window.quizUserName = name;
         document.getElementById('student-info').innerHTML = `<strong>Name:</strong> ${name} | <strong>Email:</strong> ${email}`;
-
+        
         startTimer();
         saveQuizState();
     }
@@ -257,7 +269,7 @@
             container.appendChild(row);
         }
     }
-
+    
     let totalSeconds = 180 * 60;
     let timerInterval;
     const timeDisplay = document.getElementById('timeDisplay');
@@ -296,9 +308,9 @@
             timerInterval = setInterval(updateTimer, 1000);
         }
     }
-
+    
     function countInRange(s,e){let c=0;for(let q=s;q<=e;q++){if(document.querySelector(`input[name="q${q}"]:checked`))c++;}return c;}
-
+    
     function countStatusInRange(start, end, statusClass) {
         let count = 0;
         for (let q = start; q <= end; q++) {
@@ -313,7 +325,7 @@
         const attempted = countInRange(partConfig.start, partConfig.end);
         const markedReview = countStatusInRange(partConfig.start, partConfig.end, 'yellow');
         const lockedReview = countStatusInRange(partConfig.start, partConfig.end, 'green');
-
+        
         const container = document.getElementById(containerId);
         container.innerHTML = `
             <div class="card"><strong>Attempted</strong><span>${attempted}</span></div>
@@ -372,7 +384,7 @@
         let box = document.getElementById('reviewBox'+q);
         box.style.background = 'skyblue';
         box.style.color = 'var(--text)';
-        setQnoColor(q,"green");
+        setQnoColor(q,"green"); 
         reviewOnlyQs[q] = false;
         saveQuizState();
     }
@@ -477,7 +489,7 @@
     };
 
     function saveQuizState() {
-        if (!window.quizUserName) return;
+        if (!window.quizUserName) return; 
 
         const state = {
             userName: window.quizUserName,
@@ -498,9 +510,9 @@
             const status = classList.filter(c => c !== 'qno').join(' ');
 
             if(status) {
-                state.qStates[q] = {
-                    status: status,
-                    disabled: document.querySelector(`input[name="q${q}"]`).disabled
+                state.qStates[q] = { 
+                    status: status, 
+                    disabled: document.querySelector(`input[name="q${q}"]`).disabled 
                 };
             }
         }
@@ -531,10 +543,10 @@
                 if (state.qStates[q].disabled) {
                     document.querySelectorAll(`input[name="q${q}"]`).forEach(r => r.disabled = true);
                 }
-
+                
                 let box = document.getElementById('reviewBox'+q);
                 let statusClasses = state.qStates[q].status.split(' ');
-
+                
                 if (statusClasses.includes('blue')) {
                     showReviewBox(q, "Submitted and locked. Your answer: " + (state.answers[q] || "Not Attempted"));
                     box.style.background = '#dcfce7'; box.style.color = 'var(--text)';
@@ -542,7 +554,7 @@
                     showReviewBox(q, "Marked for review and locked");
                     box.style.background = 'skyblue'; box.style.color = 'var(--text)';
                 } else if (statusClasses.includes('yellow')) {
-                    showReviewBox(q, "Review");
+                     showReviewBox(q, "Review");
                     box.style.background = '#fef9c3'; box.style.color = 'var(--text)';
                 }
             }
@@ -553,7 +565,7 @@
         updateCounts();
         startTimer();
     }
-
+    
     function buildQuestionPalette() {
         const createPalette = (partConfig, containerId) => {
             const palette = document.getElementById(containerId);
@@ -586,6 +598,22 @@
         }
     }
 
+    function setupPaletteObserver() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const part = entry.target.dataset.part;
+                    document.querySelectorAll('.question-palette').forEach(p => p.classList.remove('active'));
+                    document.getElementById(`palette-${part}`).classList.add('active');
+                }
+            });
+        }, { root: document.getElementById('omr'), threshold: 0.1 });
+
+        document.querySelectorAll('.omr h2').forEach(header => {
+            observer.observe(header);
+        });
+    }
+
     // --- Initial Load ---
     window.onload = function() {
         buildSection(PART_A.start, PART_A.end, 'partA');
@@ -593,6 +621,7 @@
         buildSection(PART_C.start, PART_C.end, 'partC');
         buildQuestionPalette();
         loadQuizState();
+        setupPaletteObserver();
     };
 
 </script>
