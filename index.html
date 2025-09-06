@@ -99,7 +99,7 @@
         .palette-item.blue { background-color: var(--ok); color: #fff; border-color: var(--ok); }
         .palette-item.yellow { background-color: var(--yellow); color: #fff; border-color: var(--yellow); }
         .palette-item.green { background-color: var(--green); color: #fff; border-color: var(--green); }
-        
+
         .result{margin-top:12px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7}
         #responseSheet{margin-top:16px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7;display:none}
         #responseSheet .qline{margin-bottom:6px;font-size:14px}
@@ -204,7 +204,7 @@
         window.quizUserEmail = email;
         window.quizUserName = name;
         document.getElementById('student-info').innerHTML = `<strong>Name:</strong> ${name} | <strong>Email:</strong> ${email}`;
-        
+
         startTimer();
         saveQuizState();
     }
@@ -257,7 +257,7 @@
             container.appendChild(row);
         }
     }
-    
+
     let totalSeconds = 180 * 60;
     let timerInterval;
     const timeDisplay = document.getElementById('timeDisplay');
@@ -296,9 +296,9 @@
             timerInterval = setInterval(updateTimer, 1000);
         }
     }
-    
+
     function countInRange(s,e){let c=0;for(let q=s;q<=e;q++){if(document.querySelector(`input[name="q${q}"]:checked`))c++;}return c;}
-    
+
     function countStatusInRange(start, end, statusClass) {
         let count = 0;
         for (let q = start; q <= end; q++) {
@@ -313,7 +313,7 @@
         const attempted = countInRange(partConfig.start, partConfig.end);
         const markedReview = countStatusInRange(partConfig.start, partConfig.end, 'yellow');
         const lockedReview = countStatusInRange(partConfig.start, partConfig.end, 'green');
-        
+
         const container = document.getElementById(containerId);
         container.innerHTML = `
             <div class="card"><strong>Attempted</strong><span>${attempted}</span></div>
@@ -372,7 +372,7 @@
         let box = document.getElementById('reviewBox'+q);
         box.style.background = 'skyblue';
         box.style.color = 'var(--text)';
-        setQnoColor(q,"green"); 
+        setQnoColor(q,"green");
         reviewOnlyQs[q] = false;
         saveQuizState();
     }
@@ -477,7 +477,7 @@
     };
 
     function saveQuizState() {
-        if (!window.quizUserName) return; 
+        if (!window.quizUserName) return;
 
         const state = {
             userName: window.quizUserName,
@@ -498,9 +498,9 @@
             const status = classList.filter(c => c !== 'qno').join(' ');
 
             if(status) {
-                state.qStates[q] = { 
-                    status: status, 
-                    disabled: document.querySelector(`input[name="q${q}"]`).disabled 
+                state.qStates[q] = {
+                    status: status,
+                    disabled: document.querySelector(`input[name="q${q}"]`).disabled
                 };
             }
         }
@@ -531,10 +531,10 @@
                 if (state.qStates[q].disabled) {
                     document.querySelectorAll(`input[name="q${q}"]`).forEach(r => r.disabled = true);
                 }
-                
+
                 let box = document.getElementById('reviewBox'+q);
                 let statusClasses = state.qStates[q].status.split(' ');
-                
+
                 if (statusClasses.includes('blue')) {
                     showReviewBox(q, "Submitted and locked. Your answer: " + (state.answers[q] || "Not Attempted"));
                     box.style.background = '#dcfce7'; box.style.color = 'var(--text)';
@@ -542,7 +542,7 @@
                     showReviewBox(q, "Marked for review and locked");
                     box.style.background = 'skyblue'; box.style.color = 'var(--text)';
                 } else if (statusClasses.includes('yellow')) {
-                     showReviewBox(q, "Review");
+                    showReviewBox(q, "Review");
                     box.style.background = '#fef9c3'; box.style.color = 'var(--text)';
                 }
             }
@@ -553,7 +553,7 @@
         updateCounts();
         startTimer();
     }
-    
+
     function buildQuestionPalette() {
         const createPalette = (partConfig, containerId) => {
             const palette = document.getElementById(containerId);
