@@ -40,6 +40,7 @@
         }
         .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
         button, a.button{padding:8px 10px;border-radius:8px;border:1px solid #e6eef8;background:#fff;cursor:pointer;font-weight:600;text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:8px}
+        button:disabled { background-color: #e0e7ff; cursor: not-allowed; }
         .primary{background:var(--accent);color:#fff;border-color:transparent}
         .danger{background:var(--bad);color:#fff;border-color:transparent}
         .ghost{background:#fff;color:var(--text)}
@@ -106,7 +107,7 @@
         <input type="text" id="userName" placeholder="Your Name" required>
         <input type="email" id="userEmail" placeholder="example@gmail.com" required>
         <input type="text" id="quizIdInput" placeholder="Enter Quiz ID" required>
-        <button onclick="showQuiz()">Start Quiz</button>
+        <button id="startQuizBtn" disabled>Connecting...</button>
         <div class="error" id="overlayError" style="display:none;"></div>
     </div>
 </div>
@@ -163,18 +164,34 @@
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
     import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
+    const startQuizBtn = document.getElementById('startQuizBtn');
 
-    window.showQuiz = showQuiz;
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            console.log("Anonymous user signed in:", user.uid);
+            startQuizBtn.disabled = false;
+            startQuizBtn.textContent = 'Start Quiz';
+            startQuizBtn.onclick = () => showQuiz(user); // Pass user to showQuiz
+        }
+    });
 
-    async function showQuiz() {
+    signInAnonymously(auth).catch(err => {
+        const errorBox = document.getElementById('overlayError');
+        errorBox.textContent = "Could not connect to the server. Please refresh.";
+        errorBox.style.display = 'block';
+    });
+
+    async function showQuiz(user) {
         const name = document.getElementById('userName').value.trim();
         const email = document.getElementById('userEmail').value.trim();
         const quizId = document.getElementById('quizIdInput').value.trim();
         const errorBox = document.getElementById('overlayError');
-        const startButton = document.querySelector("#emailBox button");
         
         const ADMIN_EMAIL = "ahamedizaz400@gmail.com";
 
@@ -183,10 +200,14 @@
         if(!quizId) { errorBox.textContent = "Please enter a Quiz ID."; errorBox.style.display = "block"; return; }
         
         errorBox.style.display = "none";
-        startButton.disabled = true;
-        startButton.textContent = "Loading...";
+        startQuizBtn.disabled = true;
+        startQuizBtn.textContent = "Loading...";
 
         try {
+            if (!user) {
+                throw new Error("Not authenticated. Please refresh the page.");
+            }
+
             const quizDocRef = doc(db, "quizzes", quizId);
             const quizDoc = await getDoc(quizDocRef);
             if (!quizDoc.exists()) {
@@ -197,7 +218,7 @@
             window.answerKey = quizData.answerKey;
 
             const attemptsRef = collection(db, "quizzes", quizId, "attempts");
-            const q = query(attemptsRef, where("email", "==", email));
+            const q = query(attemptsRef, where("userId", "==", user.uid));
             const querySnapshot = await getDocs(q);
 
             let attemptDoc;
@@ -207,12 +228,13 @@
 
             if (querySnapshot.empty) {
                  const newAttemptRef = await addDoc(attemptsRef, {
+                    userId: user.uid,
                     name: name,
                     email: email,
                     startTime: serverTimestamp()
                 });
                 attemptDoc = await getDoc(newAttemptRef);
-            } else { // Admin re-attempting
+            } else { 
                 attemptDoc = querySnapshot.docs[0];
             }
             
@@ -233,8 +255,8 @@
         } catch(err) {
             errorBox.textContent = err.message;
             errorBox.style.display = "block";
-            startButton.disabled = false;
-            startButton.textContent = "Start Quiz";
+            startQuizBtn.disabled = false;
+            startQuizBtn.textContent = "Start Quiz";
         }
     }
 
@@ -282,14 +304,12 @@
         let questionCounter = 1;
 
         config.parts.forEach(part => {
-            // Create Heading
             const heading = document.createElement('h2');
             heading.id = `part${part.name}Heading`;
             heading.dataset.part = part.name;
             heading.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Part ${part.name}`;
             omrContainer.appendChild(heading);
 
-            // Create Part Container
             const partDiv = document.createElement('div');
             partDiv.id = `part${part.name}`;
             omrContainer.appendChild(partDiv);
@@ -297,19 +317,16 @@
             const partEnd = questionCounter + part.count - 1;
             buildSection(questionCounter, partEnd, `part${part.name}`);
             
-            // Create Summary
             const summaryDiv = document.createElement('div');
             summaryDiv.className = 'part-summary';
             summaryDiv.id = `part${part.name}Summary`;
             omrContainer.appendChild(summaryDiv);
 
-            // Create Nav Button
             const navBtn = document.createElement('button');
             navBtn.textContent = `Part ${part.name}`;
             navBtn.onclick = () => jumpToPart(`part${part.name}`);
             navContainer.appendChild(navBtn);
 
-            // Create Palette
             const paletteDiv = document.createElement('div');
             paletteDiv.className = 'question-palette';
             paletteDiv.id = `palette-${part.name}`;
@@ -451,7 +468,6 @@
              updatePartSummary(part, `part${part.name}Summary`);
         });
     }
-
     document.body.addEventListener('change',(e)=>{
         if(e.target.type!=='radio')return;
         const q=parseInt(e.target.name.slice(1),10);
@@ -767,10 +783,7 @@
 
     // --- Initial Load ---
     window.onload = function() {
-        // buildSection calls are now dynamic, based on config
-        // buildQuestionPalette is now dynamic, based on config
-        // setupPaletteObserver is called from buildQuizLayout
-        // loadQuizState is called from showQuiz
+        // Functions are now called dynamically after quiz data is fetched.
     };
 
 </script>
