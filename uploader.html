@@ -10,34 +10,87 @@
         body { font-family: 'Inter', sans-serif; }
         #pdf-preview-pages canvas { border: 1px solid #e2e8f0; margin-bottom: 8px; max-width: 100%; }
         button:disabled { background-color: #a5b4fc; cursor: not-allowed; }
-        #paste-zone {
-            border: 2px dashed #cbd5e1;
-            transition: all 0.2s;
+        #progress-overlay, #confirm-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        #paste-zone.pasting {
-            border-color: #4f46e5;
-            background-color: #e0e7ff;
+        .progress-bar {
+            width: 80%;
+            height: 8px;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .progress-bar-inner {
+            height: 100%;
+            width: 50%;
+            background-color: #4f46e5;
+            border-radius: 9999px;
+            animation: progress-animation 2s infinite;
+        }
+        @keyframes progress-animation {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
         }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-    <div id="upload-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 class="text-2xl font-bold text-gray-800 mb-2">Quiz Paper Uploader</h1>
-        <p class="text-gray-600 mb-6">Upload your question paper and optional answer key to generate a unique Quiz ID for your students.</p>
+    <div id="upload-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Quiz Setup</h1>
+        <p class="text-gray-600 mb-6">Configure your quiz settings, then upload the question paper to generate a Quiz ID.</p>
+
+        <!-- Quiz Configuration -->
+        <div id="quiz-config" class="mb-6">
+            <h2 class="text-xl font-semibold mb-4 border-b pb-2">Quiz Settings</h2>
+            <div class="mb-4">
+                <label for="totalTime" class="block text-sm font-medium text-gray-700">Total Time (minutes)</label>
+                <input type="number" id="totalTime" value="180" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Part A Config -->
+                <div class="p-4 border rounded-lg bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">Part A</h3>
+                    <label class="block text-sm">No. of Questions</label><input type="number" id="partA_count" value="20" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Marks per Question</label><input type="number" id="partA_marks" value="2" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Negative Marking (%)</label><input type="number" id="partA_neg" value="25" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Max Attempts</label><input type="number" id="partA_max" value="15" class="w-full p-1 mb-2 border rounded">
+                </div>
+                <!-- Part B Config -->
+                <div class="p-4 border rounded-lg bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">Part B</h3>
+                    <label class="block text-sm">No. of Questions</label><input type="number" id="partB_count" value="40" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Marks per Question</label><input type="number" id="partB_marks" value="2" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Negative Marking (%)</label><input type="number" id="partB_neg" value="25" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Max Attempts</label><input type="number" id="partB_max" value="25" class="w-full p-1 mb-2 border rounded">
+                </div>
+                <!-- Part C Config -->
+                <div class="p-4 border rounded-lg bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">Part C</h3>
+                    <label class="block text-sm">No. of Questions</label><input type="number" id="partC_count" value="60" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Marks per Question</label><input type="number" id="partC_marks" value="4" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Negative Marking (%)</label><input type="number" id="partC_neg" value="25" class="w-full p-1 mb-2 border rounded">
+                    <label class="block text-sm">Max Attempts</label><input type="number" id="partC_max" value="30" class="w-full p-1 mb-2 border rounded">
+                </div>
+            </div>
+        </div>
+
 
         <div class="space-y-4">
             <div>
-                <label for="questionFile" class="block text-sm font-medium text-gray-700 mb-1">1. Question Paper (.txt, .md, or .pdf)</label>
+                <label for="questionFile" class="block text-sm font-medium text-gray-700 mb-1">Question Paper (.txt, .md, or .pdf)</label>
                 <label class="w-full flex items-center px-4 py-2 bg-white text-blue-500 rounded-lg shadow-sm tracking-wide uppercase border border-blue-500 cursor-pointer hover:bg-blue-500 hover:text-white">
                     <svg class="w-6 h-6 mr-2" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4 4-4-4h3V3h2v8z" /></svg>
                     <span id="fileName" class="truncate">Select a file</span>
                     <input type='file' id="questionFile" class="hidden" accept=".txt,.md,.pdf"/>
                 </label>
-            </div>
-
-            <div>
-                <label for="answerKey" class="block text-sm font-medium text-gray-700 mb-1">2. Answer Key (Optional)</label>
-                <textarea id="answerKey" rows="4" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 1:B, 2:A, 3:D, 4:C ..."></textarea>
             </div>
         </div>
 
@@ -48,17 +101,17 @@
     </div>
 
     <div id="correction-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-7xl" style="display: none;">
-        <h1 class="text-2xl font-bold text-gray-800 mb-2">Preview & Construct Questions</h1>
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Step 2: Preview & Construct Questions</h1>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 h-[75vh]">
             <div id="pdf-preview" class="border rounded-md p-2 overflow-auto bg-gray-50">
-                <h3 class="font-bold text-lg mb-2 text-center">PDF Preview</h3>
+                <h3 class="font-bold text-lg mb-2 text-center">File Preview</h3>
                 <div id="pdf-preview-pages"></div>
             </div>
             <div id="text-editor" class="flex flex-col">
                 <div id="question-constructor" class="mb-4 p-4 border rounded-lg bg-gray-50">
-                    <h3 class="font-bold text-lg mb-2">Question Constructor</h3>
-                    <p class="text-sm text-gray-600 mb-4">Take a screenshot of a single question and paste it directly into the box below (`Ctrl+V` or `Cmd+V`). Then press Enter to add it.</p>
-                    <div id="paste-zone" class="w-full h-24 rounded-lg flex items-center justify-center text-gray-500 bg-white cursor-pointer" tabindex="0">
+                    <h3 class="font-bold text-lg mb-2">Question Constructor (for Scanned PDFs)</h3>
+                    <p class="text-sm text-gray-600 mb-4">Take a screenshot of a single question (including options) and paste it directly into the box below (`Ctrl+V`). Press Enter to add it.</p>
+                    <div id="paste-zone" class="w-full h-24 rounded-lg flex items-center justify-center text-gray-500 bg-white cursor-pointer border-2 border-dashed border-gray-300" tabindex="0">
                         <p id="paste-text">Click here and Paste Screenshot</p>
                         <img id="paste-preview" class="max-h-full max-w-full" style="display:none;" />
                     </div>
@@ -66,6 +119,10 @@
                 </div>
                 <h3 class="font-bold text-lg mb-2 text-center">Final Questions (Editable)</h3>
                 <textarea id="finalQuestionsText" class="w-full h-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 flex-grow"></textarea>
+                 <div class="mt-4">
+                    <label for="answerKey" class="block text-sm font-medium text-gray-700 mb-1">Answer Key (Required)</label>
+                    <textarea id="answerKey" rows="3" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 1:B, 2:A, 3:D, 4:C ..."></textarea>
+                </div>
             </div>
         </div>
         <button id="generateBtn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700">
@@ -83,6 +140,26 @@
                 <button id="copyBtn" class="ml-4 p-1 rounded-md hover:bg-gray-200">
                     <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                 </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="progress-overlay" style="display: none;">
+        <div class="bg-white p-6 rounded-lg shadow-xl text-center">
+            <p class="font-semibold text-lg mb-4" id="progress-text">Generating Quiz ID...</p>
+            <div class="progress-bar">
+                <div class="progress-bar-inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-overlay" style="display: none;">
+        <div class="bg-white p-6 rounded-lg shadow-xl text-center w-full max-w-sm">
+            <h3 class="text-lg font-bold text-gray-900">Confirm Action</h3>
+            <p class="mt-2 text-sm text-gray-600">You have not provided an answer key. The quiz will be generated without answers for scoring. Do you want to continue?</p>
+            <div class="mt-6 flex justify-end gap-4">
+                <button id="cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
+                <button id="confirm-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Yes, Continue</button>
             </div>
         </div>
     </div>
@@ -113,6 +190,9 @@
         const generateBtn = document.getElementById('generateBtn');
         const errorBox = document.getElementById('errorBox');
         const correctionErrorBox = document.getElementById('correctionErrorBox');
+        const progressOverlay = document.getElementById('progress-overlay');
+        const progressText = document.getElementById('progress-text');
+        const confirmOverlay = document.getElementById('confirm-overlay');
         let currentQuestionNumber = 1;
         let pastedImageAsBase64 = null;
 
@@ -159,20 +239,42 @@
             }
         });
 
-        generateBtn.addEventListener('click', async () => {
+        generateBtn.addEventListener('click', () => {
+            const answerKeyText = document.getElementById('answerKey').value.trim();
+            if (!answerKeyText) {
+                confirmOverlay.style.display = 'flex';
+            } else {
+                triggerGeneration();
+            }
+        });
+
+        document.getElementById('confirm-btn').addEventListener('click', () => {
+            confirmOverlay.style.display = 'none';
+            triggerGeneration();
+        });
+
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+            confirmOverlay.style.display = 'none';
+        });
+        
+        async function triggerGeneration() {
             correctionErrorBox.style.display = 'none';
             generateBtn.disabled = true;
-            generateBtn.textContent = 'Generating...';
+            progressText.textContent = 'Generating Quiz ID...';
+            progressOverlay.style.display = 'flex';
+            
             const correctedText = document.getElementById('finalQuestionsText').value;
+            const answerKeyText = document.getElementById('answerKey').value.trim();
+            
             try {
-                await processFinalText(correctedText);
+                await processFinalText(correctedText, answerKeyText);
             } catch (err) {
                  showError(err.message);
             } finally {
+                progressOverlay.style.display = 'none';
                 generateBtn.disabled = false;
-                generateBtn.textContent = 'Finalize and Generate Quiz ID';
             }
-        });
+        }
         
         const pasteZone = document.getElementById('paste-zone');
         pasteZone.addEventListener('paste', handlePaste);
@@ -191,7 +293,6 @@
                         document.getElementById('paste-text').style.display = 'none';
                     };
                     reader.readAsDataURL(blob);
-                    pasteZone.classList.add('pasting');
                 }
             }
         }
@@ -210,26 +311,22 @@
             mainTextArea.value += (mainTextArea.value ? '\n---\n\n' : '') + markdownString;
             mainTextArea.scrollTop = mainTextArea.scrollHeight;
 
-            // Reset for next question
             currentQuestionNumber++;
             document.getElementById('currentQNumLabel').textContent = currentQuestionNumber;
             pastedImageAsBase64 = null;
             document.getElementById('paste-preview').style.display = 'none';
             document.getElementById('paste-text').style.display = 'block';
-            pasteZone.classList.remove('pasting');
         });
         
         pasteZone.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault(); // Prevent default Enter behavior in a form
+                e.preventDefault(); 
                 addQuestionBtn.click();
             }
         });
 
 
-        async function processFinalText(textContent) {
-             const answerKeyText = document.getElementById('answerKey').value.trim();
-             
+        async function processFinalText(textContent, answerKeyText) {
             const questions = textContent.split('---').map(q => q.trim()).filter(Boolean);
             if (questions.length === 0) {
                 throw new Error("No questions found. Please ensure the text is formatted correctly and questions are separated by '---'.");
@@ -240,9 +337,12 @@
                 answerKey = parseAnswerKey(answerKeyText);
             }
 
+            const config = getQuizConfig();
+
             const docRef = await addDoc(collection(db, "quizzes"), {
                 questions: questions,
                 answerKey: answerKey,
+                config: config,
                 createdAt: new Date()
             });
             
@@ -250,6 +350,17 @@
             document.getElementById('correction-section').style.display = 'none';
             document.getElementById('result-section').style.display = 'block';
             showResult(docRef.id);
+        }
+
+        function getQuizConfig() {
+            return {
+                totalTime: parseInt(document.getElementById('totalTime').value, 10),
+                parts: [
+                    { name: "A", count: parseInt(document.getElementById('partA_count').value, 10), marks: parseFloat(document.getElementById('partA_marks').value), neg_frac: parseFloat(document.getElementById('partA_neg').value) / 100, maxAttempt: parseInt(document.getElementById('partA_max').value, 10) },
+                    { name: "B", count: parseInt(document.getElementById('partB_count').value, 10), marks: parseFloat(document.getElementById('partB_marks').value), neg_frac: parseFloat(document.getElementById('partB_neg').value) / 100, maxAttempt: parseInt(document.getElementById('partB_max').value, 10) },
+                    { name: "C", count: parseInt(document.getElementById('partC_count').value, 10), marks: parseFloat(document.getElementById('partC_marks').value), neg_frac: parseFloat(document.getElementById('partC_neg').value) / 100, maxAttempt: parseInt(document.getElementById('partC_max').value, 10) }
+                ]
+            };
         }
 
 
@@ -261,7 +372,6 @@
             uploadBtn.disabled = false;
             uploadBtn.textContent = 'Upload & Continue';
             generateBtn.disabled = false;
-            generateBtn.textContent = 'Finalize and Generate Quiz ID';
         }
 
         function showResult(id) {
