@@ -115,7 +115,7 @@
     <div class="quiz-layout">
         <div class="main-content">
             <h1 id="quizTitle">CSIR NET — OMR Style</h1>
-            <p id="quizLead" class="lead"></p>
+            <p id="quizLead" class="lead">Attempt limits: Part A ≤ 15, Part B ≤ 25, Part C ≤ 30. Negative marking: 1/4.</p>
              <div class="controls">
                 <button id="clearAll" class="ghost">Clear All</button>
                 <button id="markAllReview" class="ghost">Mark All Review</button>
@@ -124,7 +124,24 @@
                 <button id="pdfBtn" class="ghost">Download PDF</button>
             </div>
             <div class="omr" id="omr">
-                <!-- Part content will be generated dynamically -->
+                <h2 id="partAHeading" data-part="A">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part A
+                </h2>
+                <div id="partA"></div>
+                <div class="part-summary" id="partASummary"></div>
+                <h2 id="partBHeading" data-part="B">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part B
+                </h2>
+                <div id="partB"></div>
+                <div class="part-summary" id="partBSummary"></div>
+                <h2 id="partCHeading" data-part="C">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part C
+                </h2>
+                <div id="partC"></div>
+                <div class="part-summary" id="partCSummary"></div>
             </div>
             <div id="resultPane" class="result" style="display:none"></div>
             <div id="responseSheet"></div>
@@ -139,11 +156,15 @@
                 Time Left: <span id="timeDisplay">--:--:--</span>
             </div>
             <div id="part-nav">
-                <!-- Part buttons will be generated dynamically -->
+                <button onclick="jumpToPart('partA')">Part A</button>
+                <button onclick="jumpToPart('partB')">Part B</button>
+                <button onclick="jumpToPart('partC')">Part C</button>
             </div>
             <div id="palette-container">
                 <h3>Question Palette</h3>
-                <!-- Palettes will be generated dynamically -->
+                <div class="question-palette" id="palette-A"></div>
+                <div class="question-palette" id="palette-B"></div>
+                <div class="question-palette" id="palette-C"></div>
             </div>
         </div>
     </div>
@@ -214,7 +235,6 @@
                 throw new Error("Invalid Quiz ID. Please check and try again.");
             }
             const quizData = quizDoc.data();
-            window.quizConfig = quizData.config;
             window.answerKey = quizData.answerKey;
 
             const attemptsRef = collection(db, "quizzes", quizId, "attempts");
@@ -239,7 +259,7 @@
             
             const serverStartTime = attemptDoc.data().startTime.toDate();
             
-            buildQuizLayout(quizData.config);
+            buildQuizLayout(); // Build the static layout
             await loadQuestionsFromData(quizData.questions);
 
             document.getElementById('emailOverlay').style.display = "none";
@@ -249,7 +269,7 @@
             window.quizUserName = name;
             document.getElementById('student-info').innerHTML = `<strong>Name:</strong> ${name} | <strong>Email:</strong> ${email}`;
             
-            startTimer(serverStartTime, quizData.config.totalTime);
+            startTimer(serverStartTime, 180); // Using static time
             loadQuizState();
         } catch(err) {
             errorBox.textContent = err.message;
@@ -289,54 +309,20 @@
 <script>
     const QUIZ_STATE_KEY_PREFIX = 'csirQuizState_';
     let QUIZ_STATE_KEY = 'csirQuizState_default'; 
+    
+    const PART_A={start:1,end:20,marks:2,neg_frac:0.25,maxAttempt:15};
+    const PART_B={start:21,end:60,marks:2,neg_frac:0.25,maxAttempt:35};
+    const PART_C={start:61,end:120,marks:4,neg_frac:0.25,maxAttempt:25};
+    const ALL_PARTS = [PART_A, PART_B, PART_C];
+
     let reviewOnlyQs = {};
     let timerInterval;
 
-    function buildQuizLayout(config) {
-        const omrContainer = document.getElementById('omr');
-        const navContainer = document.getElementById('part-nav');
-        const paletteContainer = document.getElementById('palette-container');
-        omrContainer.innerHTML = '';
-        navContainer.innerHTML = '';
-        paletteContainer.innerHTML = '<h3>Question Palette</h3>';
-        
-        let questionCounter = 1;
-
-        config.parts.forEach(part => {
-            const heading = document.createElement('h2');
-            heading.id = `part${part.name}Heading`;
-            heading.dataset.part = part.name;
-            heading.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Part ${part.name}`;
-            omrContainer.appendChild(heading);
-
-            const partDiv = document.createElement('div');
-            partDiv.id = `part${part.name}`;
-            omrContainer.appendChild(partDiv);
-            
-            const partEnd = questionCounter + part.count - 1;
-            buildSection(questionCounter, partEnd, `part${part.name}`);
-            
-            const summaryDiv = document.createElement('div');
-            summaryDiv.className = 'part-summary';
-            summaryDiv.id = `part${part.name}Summary`;
-            omrContainer.appendChild(summaryDiv);
-
-            const navBtn = document.createElement('button');
-            navBtn.textContent = `Part ${part.name}`;
-            navBtn.onclick = () => jumpToPart(`part${part.name}`);
-            navContainer.appendChild(navBtn);
-
-            const paletteDiv = document.createElement('div');
-            paletteDiv.className = 'question-palette';
-            paletteDiv.id = `palette-${part.name}`;
-            paletteContainer.appendChild(paletteDiv);
-            buildQuestionPalette({start: questionCounter, end: partEnd}, `palette-${part.name}`);
-            
-            questionCounter = partEnd + 1;
-        });
-
-        document.getElementById('quizLead').textContent = `Attempt limits: Part A ≤ ${config.parts[0].maxAttempt}, Part B ≤ ${config.parts[1].maxAttempt}, Part C ≤ ${config.parts[2].maxAttempt}. Negative marking: ${config.parts[0].neg_frac * 100}%.`;
-        
+    function buildQuizLayout() {
+        buildSection(PART_A.start, PART_A.end, 'partA');
+        buildSection(PART_B.start, PART_B.end, 'partB');
+        buildSection(PART_C.start, PART_C.end, 'partC');
+        buildQuestionPalette();
         setupPaletteObserver();
         document.getElementById('palette-A').classList.add('active');
     }
@@ -440,19 +426,9 @@
     }
 
     function updatePartSummary(partConfig, containerId) {
-        let qCounter = 1;
-        for (let i = 0; i < window.quizConfig.parts.length; i++) {
-            if (window.quizConfig.parts[i].name === partConfig.name) {
-                break;
-            }
-            qCounter += window.quizConfig.parts[i].count;
-        }
-        const startQ = qCounter;
-        const endQ = startQ + partConfig.count - 1;
-
-        const attempted = countInRange(startQ, endQ);
-        const markedReview = countStatusInRange(startQ, endQ, 'yellow');
-        const lockedReview = countStatusInRange(startQ, endQ, 'green');
+        const attempted = countInRange(partConfig.start, partConfig.end);
+        const markedReview = countStatusInRange(partConfig.start, partConfig.end, 'yellow');
+        const lockedReview = countStatusInRange(partConfig.start, partConfig.end, 'green');
         
         const container = document.getElementById(containerId);
         container.innerHTML = `
@@ -463,30 +439,16 @@
     }
 
     function updateCounts(){
-        window.quizConfig.parts.forEach(part => {
-             updatePartSummary(part, `part${part.name}Summary`);
-        });
+        updatePartSummary(PART_A, 'partASummary');
+        updatePartSummary(PART_B, 'partBSummary');
+        updatePartSummary(PART_C, 'partCSummary');
     }
     document.body.addEventListener('change',(e)=>{
         if(e.target.type!=='radio')return;
         const q=parseInt(e.target.name.slice(1),10);
         
-        const part = window.quizConfig.parts.find(p => {
-            let start = 1;
-            for(let i=0; i<window.quizConfig.parts.indexOf(p); i++) {
-                start += window.quizConfig.parts[i].count;
-            }
-            const end = start + p.count - 1;
-            return q >= start && q <= end;
-        });
-
-        let startRange = 1;
-        for(let i=0; i<window.quizConfig.parts.indexOf(part); i++) {
-             startRange += window.quizConfig.parts[i].count;
-        }
-        const endRange = startRange + part.count - 1;
-
-        if(countInRange(startRange, endRange) > part.maxAttempt){
+        const part = ALL_PARTS.find(p => q >= p.start && q <= p.end);
+        if (part && countInRange(part.start, part.end) > part.maxAttempt){
             e.target.checked=false;
             showNotification('Attempt limit reached for this section.', 'error');
         }
@@ -561,23 +523,14 @@
     }
     function scorePart(partConfig){
         let correct=0,wrong=0,unattempted=0,score=0;
-        let qCounter = 1;
-        for (let i = 0; i < window.quizConfig.parts.length; i++) {
-            if (window.quizConfig.parts[i].name === partConfig.name) {
-                break;
-            }
-            qCounter += window.quizConfig.parts[i].count;
-        }
-        const startQ = qCounter;
-        const endQ = startQ + partConfig.count - 1;
-
-        for(let q=startQ;q<=endQ;q++){
+        for(let q=partConfig.start;q<=partConfig.end;q++){
             if(reviewOnlyQs[q]) continue;
             const sel=document.querySelector(`input[name="q${q}"]:checked`);
             if(!sel){unattempted++;continue;}
             if(sel.value===window.answerKey[q]){correct++;score+=partConfig.marks;}else{wrong++;score-=partConfig.marks*partConfig.neg_frac;}
         }
-        return{correct,wrong,unattempted,score, totalQuestions: partConfig.count};
+        const totalQuestions = partConfig.end - partConfig.start + 1;
+        return{correct,wrong,unattempted,score, totalQuestions};
     }
     document.getElementById('submitBtn').onclick=()=>{
         clearInterval(timerInterval);
@@ -585,9 +538,9 @@
         var userEmail = window.quizUserEmail || "unknown";
         var userName = window.quizUserName || "unknown";
 
-        const results = window.quizConfig.parts.map(part => scorePart(part));
+        const results = ALL_PARTS.map(part => scorePart(part));
         const totalScore = results.reduce((acc, r) => acc + r.score, 0);
-        const maxTotal = window.quizConfig.parts.reduce((acc, p) => acc + (p.maxAttempt * p.marks), 0);
+        const maxTotal = ALL_PARTS.reduce((acc, p) => acc + (p.maxAttempt * p.marks), 0);
         const percent=(totalScore/maxTotal)*100;
         const grade=percent>=80?'Distinction':percent>=60?'First Class':percent>=40?'Second Class':'Fail';
         
@@ -595,7 +548,8 @@
         pane.style.display='block';
         let resultHTML = `<b>Name:</b> ${userName}<br><b>Email:</b> ${userEmail}<br>`;
         results.forEach((r, i) => {
-            resultHTML += `<b>Part ${window.quizConfig.parts[i].name}</b>: ${r.correct}C, ${r.wrong}W, ${r.totalQuestions - r.correct - r.wrong}U → ${r.score.toFixed(2)}<br>`;
+            const partName = ALL_PARTS[i].name;
+            resultHTML += `<b>Part ${partName}</b>: ${r.correct}C, ${r.wrong}W, ${r.totalQuestions - r.correct - r.wrong}U → ${r.score.toFixed(2)}<br>`;
         });
         resultHTML += `<hr><b>Total</b>: ${totalScore.toFixed(2)} / ${maxTotal} (${percent.toFixed(2)}%) — ${grade}`;
         pane.innerHTML = resultHTML;
@@ -603,7 +557,7 @@
         const sheet=document.getElementById('responseSheet');sheet.style.display='block';
         sheet.innerHTML='<h3>Response Sheet</h3>';
         let responseText = `Quiz Response\nName: ${userName}\nEmail: ${userEmail}\nScore: ${totalScore.toFixed(2)} / ${maxTotal}\nGrade: ${grade}\n\nAnswers:\n`;
-        let totalQuestions = window.quizConfig.parts.reduce((acc, p) => acc + p.count, 0);
+        let totalQuestions = 120;
         
         for(let q=1;q<=totalQuestions;q++){
             const sel=document.querySelector(`input[name="q${q}"]:checked`);
@@ -659,7 +613,7 @@
             reviewOnly: reviewOnlyQs
         };
         
-        const totalQuestions = window.quizConfig.parts.reduce((acc, p) => acc + p.count, 0);
+        const totalQuestions = 120;
         for (let q = 1; q <= totalQuestions; q++) {
             const selected = getSelected(q);
             if (selected) {
@@ -691,7 +645,7 @@
         if (!state.userName || state.userName !== window.quizUserName) return;
 
         reviewOnlyQs = state.reviewOnly || {};
-        const totalQuestions = window.quizConfig.parts.reduce((acc, p) => acc + p.count, 0);
+        const totalQuestions = 120;
         for (let q = 1; q <= totalQuestions; q++) {
             if (state.answers[q]) {
                 document.querySelector(`input[name="q${q}"][value="${state.answers[q]}"]`).checked = true;
@@ -721,11 +675,9 @@
     }
     
     function buildQuestionPalette() {
-        let qCounter = 1;
-        window.quizConfig.parts.forEach(part => {
-            const palette = document.getElementById(`palette-${part.name}`);
-            const endQ = qCounter + part.count - 1;
-            for (let i = qCounter; i <= endQ; i++) {
+        const createPalette = (partConfig, containerId) => {
+            const palette = document.getElementById(containerId);
+            for (let i = partConfig.start; i <= partConfig.end; i++) {
                 const item = document.createElement('div');
                 item.className = 'palette-item';
                 item.textContent = i;
@@ -733,8 +685,11 @@
                 item.onclick = () => jumpToQuestion(i);
                 palette.appendChild(item);
             }
-            qCounter = endQ + 1;
-        });
+        };
+
+        createPalette(PART_A, 'palette-A');
+        createPalette(PART_B, 'palette-B');
+        createPalette(PART_C, 'palette-C');
     }
 
     function jumpToQuestion(q) {
@@ -782,7 +737,7 @@
 
     // --- Initial Load ---
     window.onload = function() {
-        // All building functions are now called dynamically from showQuiz() after data is fetched.
+        // Functions are now called dynamically after quiz data is fetched.
     };
 
 </script>
