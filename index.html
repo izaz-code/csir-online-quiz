@@ -239,7 +239,7 @@
                         if (!contentDiv) {
                             contentDiv = document.createElement('div');
                             contentDiv.className = 'question-content';
-                            questionRow.insertBefore(contentDiv, questionRow.children[1]);
+                            questionRow.insertBefore(contentDiv, questionRow.firstChild);
                         }
                         const markdownContent = qText.replace(/\*\*Q\d+\.\*\*\s*/, '');
                         contentDiv.innerHTML = marked.parse(markdownContent);
