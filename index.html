@@ -218,7 +218,7 @@
             window.answerKey = quizData.answerKey;
 
             const attemptsRef = collection(db, "quizzes", quizId, "attempts");
-            const q = query(attemptsRef, where("userId", "==", user.uid));
+            const q = query(attemptsRef, where("email", "==", email));
             const querySnapshot = await getDocs(q);
 
             let attemptDoc;
@@ -228,9 +228,8 @@
 
             if (querySnapshot.empty) {
                  const newAttemptRef = await addDoc(attemptsRef, {
-                    userId: user.uid,
-                    name: name,
                     email: email,
+                    name: name,
                     startTime: serverTimestamp()
                 });
                 attemptDoc = await getDoc(newAttemptRef);
