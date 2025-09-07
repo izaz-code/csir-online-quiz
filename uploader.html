@@ -9,267 +9,343 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         #pdf-preview-pages canvas { border: 1px solid #e2e8f0; margin-bottom: 8px; max-width: 100%; }
+        button:disabled { background-color: #a5b4fc; cursor: not-allowed; }
+        #paste-zone {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.2s;
+        }
+        #paste-zone.pasting {
+            border-color: #4f46e5;
+            background-color: #e0e7ff;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-<div id="upload-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-    <h1 class="text-2xl font-bold text-gray-800 mb-2">Quiz Paper Uploader</h1>
-    <p class="text-gray-600 mb-6">Upload your question paper and optional answer key to generate a unique Quiz ID for your students.</p>
+    <div id="upload-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Quiz Paper Uploader</h1>
+        <p class="text-gray-600 mb-6">Upload your question paper and optional answer key to generate a unique Quiz ID for your students.</p>
 
-    <div class="space-y-4">
-        <div>
-            <label for="questionFile" class="block text-sm font-medium text-gray-700 mb-1">1. Question Paper (.txt, .md, or .pdf)</label>
-            <label class="w-full flex items-center px-4 py-2 bg-white text-blue-500 rounded-lg shadow-sm tracking-wide uppercase border border-blue-500 cursor-pointer hover:bg-blue-500 hover:text-white">
-                <svg class="w-6 h-6 mr-2" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4 4-4-4h3V3h2v8z" /></svg>
-                <span id="fileName" class="truncate">Select a file</span>
-                <input type='file' id="questionFile" class="hidden" accept=".txt,.md,.pdf"/>
-            </label>
+        <div class="space-y-4">
+            <div>
+                <label for="questionFile" class="block text-sm font-medium text-gray-700 mb-1">1. Question Paper (.txt, .md, or .pdf)</label>
+                <label class="w-full flex items-center px-4 py-2 bg-white text-blue-500 rounded-lg shadow-sm tracking-wide uppercase border border-blue-500 cursor-pointer hover:bg-blue-500 hover:text-white">
+                    <svg class="w-6 h-6 mr-2" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4 4-4-4h3V3h2v8z" /></svg>
+                    <span id="fileName" class="truncate">Select a file</span>
+                    <input type='file' id="questionFile" class="hidden" accept=".txt,.md,.pdf"/>
+                </label>
+            </div>
+
+            <div>
+                <label for="answerKey" class="block text-sm font-medium text-gray-700 mb-1">2. Answer Key (Optional)</label>
+                <textarea id="answerKey" rows="4" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 1:B, 2:A, 3:D, 4:C ..."></textarea>
+            </div>
         </div>
 
-        <div>
-            <label for="answerKey" class="block text-sm font-medium text-gray-700 mb-1">2. Answer Key (Optional)</label>
-            <textarea id="answerKey" rows="4" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 1:B, 2:A, 3:D, 4:C ..."></textarea>
+        <button id="uploadBtn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200" disabled>
+            Connecting to Server...
+        </button>
+        <div id="errorBox" class="mt-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-md" style="display:none;"></div>
+    </div>
+
+    <div id="correction-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-7xl" style="display: none;">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Preview & Construct Questions</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 h-[75vh]">
+            <div id="pdf-preview" class="border rounded-md p-2 overflow-auto bg-gray-50">
+                <h3 class="font-bold text-lg mb-2 text-center">PDF Preview</h3>
+                <div id="pdf-preview-pages"></div>
+            </div>
+            <div id="text-editor" class="flex flex-col">
+                <div id="question-constructor" class="mb-4 p-4 border rounded-lg bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">Question Constructor</h3>
+                    <p class="text-sm text-gray-600 mb-4">Take a screenshot of a single question and paste it directly into the box below (`Ctrl+V` or `Cmd+V`). Then press Enter to add it.</p>
+                    <div id="paste-zone" class="w-full h-24 rounded-lg flex items-center justify-center text-gray-500 bg-white cursor-pointer" tabindex="0">
+                        <p id="paste-text">Click here and Paste Screenshot</p>
+                        <img id="paste-preview" class="max-h-full max-w-full" style="display:none;" />
+                    </div>
+                    <button id="addQuestionBtn" class="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Add Question <span id="currentQNumLabel" class="font-bold">1</span> to List</button>
+                </div>
+                <h3 class="font-bold text-lg mb-2 text-center">Final Questions (Editable)</h3>
+                <textarea id="finalQuestionsText" class="w-full h-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 flex-grow"></textarea>
+            </div>
+        </div>
+        <button id="generateBtn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700">
+            Finalize and Generate Quiz ID
+        </button>
+        <div id="correctionErrorBox" class="mt-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-md" style="display:none;"></div>
+    </div>
+
+     <div id="result-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md" style="display: none;">
+        <div id="result" class="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+            <p class="text-green-800 font-medium">Quiz Generated Successfully!</p>
+            <p class="text-sm text-green-700 mt-1">Share this ID with your students:</p>
+            <div class="mt-2 flex items-center justify-center bg-white p-2 border rounded-md">
+                <code id="quizId" class="text-lg font-bold text-indigo-700"></code>
+                <button id="copyBtn" class="ml-4 p-1 rounded-md hover:bg-gray-200">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                </button>
+            </div>
         </div>
     </div>
 
-    <button id="uploadBtn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
-        Upload & Continue
-    </button>
-    <div id="errorBox" class="mt-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-md" style="display:none;"></div>
-</div>
 
-<div id="correction-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-6xl" style="display: none;">
-    <h1 class="text-2xl font-bold text-gray-800 mb-2">Preview and Correct Extracted Text</h1>
-    <p class="text-gray-600 mb-6">Review the PDF preview on the left. Edit the text on the right to fix any errors and manually add image URLs in Markdown format (e.g., `![alt text](https://.../image.png)`). When ready, click "Generate Quiz ID".</p>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 h-[60vh]">
-        <div id="pdf-preview" class="border rounded-md p-2 overflow-auto bg-gray-50">
-            <h3 class="font-bold text-lg mb-2 text-center">PDF Preview</h3>
-            <div id="pdf-preview-pages"></div>
-        </div>
-        <div id="text-editor" class="flex flex-col">
-            <h3 class="font-bold text-lg mb-2 text-center">Editable Text</h3>
-            <textarea id="extractedText" class="w-full h-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 flex-grow"></textarea>
-        </div>
-    </div>
-    <button id="generateBtn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700">
-        Generate Quiz ID
-    </button>
-</div>
+    <script type="module">
+        // --- Your Unique Firebase Configuration ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyCtqTUgcNmEVpomhPOozHA_3iw4ZnaCJug",
+          authDomain: "quiz-3d72e.firebaseapp.com",
+          projectId: "quiz-3d72e",
+          storageBucket: "quiz-3d72e.appspot.com",
+          messagingSenderId: "843152315174",
+          appId: "1:843152315174:web:e90ae825078e7d0c7ae7e7",
+          measurementId: "G-L0J0BQP3QS"
+        };
+        // --- END OF FIREBASE CONFIGURATION ---
 
-<div id="result-section" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md" style="display: none;">
-    <div id="result" class="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
-        <p class="text-green-800 font-medium">Quiz Generated Successfully!</p>
-        <p class="text-sm text-green-700 mt-1">Share this ID with your students:</p>
-        <div class="mt-2 flex items-center justify-center bg-white p-2 border rounded-md">
-            <code id="quizId" class="text-lg font-bold text-indigo-700"></code>
-            <button id="copyBtn" class="ml-4 p-1 rounded-md hover:bg-gray-200">
-                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-            </button>
-        </div>
-    </div>
-</div>
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        const uploadBtn = document.getElementById('uploadBtn');
+        const generateBtn = document.getElementById('generateBtn');
+        const errorBox = document.getElementById('errorBox');
+        const correctionErrorBox = document.getElementById('correctionErrorBox');
+        let currentQuestionNumber = 1;
+        let pastedImageAsBase64 = null;
 
-<script type="module">
-    // --- Your Unique Firebase Configuration ---
-    const firebaseConfig = {
-        apiKey: "AIzaSyCtqTUgcNmEVpomhPOozHA_3iw4ZnaCJug",
-        authDomain: "quiz-3d72e.firebaseapp.com",
-        projectId: "quiz-3d72e",
-        storageBucket: "quiz-3d72e.appspot.com",
-        messagingSenderId: "843152315174",
-        appId: "1:843152315174:web:e90ae825078e7d0c7ae7e7",
-        measurementId: "G-L0J0BQP3QS"
-    };
-    // --- END OF FIREBASE CONFIGURATION ---
+        signInAnonymously(auth)
+            .then(() => {
+                console.log("Firebase connection successful.");
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload & Continue';
+            })
+            .catch((error) => {
+                console.error("Anonymous sign-in failed:", error);
+                showError('Error: Could not connect to the database. Please check your Firebase setup and security rules.');
+                uploadBtn.textContent = 'Connection Failed';
+        });
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        const questionFileInput = document.getElementById('questionFile');
+        questionFileInput.addEventListener('change', (e) => {
+            document.getElementById('fileName').textContent = e.target.files[0] ? e.target.files[0].name : 'Select a file';
+        });
+        
+        uploadBtn.addEventListener('click', async () => {
+            errorBox.style.display = 'none';
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Processing...';
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
+            const questionFile = questionFileInput.files[0];
 
-    signInAnonymously(auth).catch((error) => {
-        console.error("Anonymous sign-in failed:", error);
-        showError('Error: Could not connect to the database. Please check your Firebase setup.');
-    });
+            if (!questionFile) {
+                showError('Please provide a question paper file.');
+                return;
+            }
 
-    const questionFileInput = document.getElementById('questionFile');
-    questionFileInput.addEventListener('change', (e) => {
-        document.getElementById('fileName').textContent = e.target.files[0] ? e.target.files[0].name : 'Select a file';
-    });
-
-    const uploadBtn = document.getElementById('uploadBtn');
-    const generateBtn = document.getElementById('generateBtn');
-    const errorBox = document.getElementById('errorBox');
-
-    uploadBtn.addEventListener('click', async () => {
-        errorBox.style.display = 'none';
-        uploadBtn.disabled = true;
-        uploadBtn.textContent = 'Processing...';
-
-        const questionFile = questionFileInput.files[0];
-
-        if (!questionFile) {
-            showError('Please provide a question paper file.');
-            return;
-        }
-
-        try {
-            const textContent = await parseQuestionFile(questionFile);
-
-            if (questionFile.type === 'application/pdf') {
-                document.getElementById('extractedText').value = textContent;
+            try {
+                const textContent = await parseQuestionFile(questionFile);
+                document.getElementById('finalQuestionsText').value = textContent;
                 document.getElementById('upload-section').style.display = 'none';
                 document.getElementById('correction-section').style.display = 'block';
-            } else {
-                await processFinalText(textContent);
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload & Continue';
             }
-        } catch (err) {
-            showError(err.message);
-        } finally {
+        });
+
+        generateBtn.addEventListener('click', async () => {
+            correctionErrorBox.style.display = 'none';
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            const correctedText = document.getElementById('finalQuestionsText').value;
+            try {
+                await processFinalText(correctedText);
+            } catch (err) {
+                 showError(err.message);
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Finalize and Generate Quiz ID';
+            }
+        });
+        
+        const pasteZone = document.getElementById('paste-zone');
+        pasteZone.addEventListener('paste', handlePaste);
+
+        function handlePaste(e) {
+            e.preventDefault();
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        pastedImageAsBase64 = event.target.result;
+                        document.getElementById('paste-preview').src = pastedImageAsBase64;
+                        document.getElementById('paste-preview').style.display = 'block';
+                        document.getElementById('paste-text').style.display = 'none';
+                    };
+                    reader.readAsDataURL(blob);
+                    pasteZone.classList.add('pasting');
+                }
+            }
+        }
+        
+        const addQuestionBtn = document.getElementById('addQuestionBtn');
+        addQuestionBtn.addEventListener('click', () => {
+            if (!pastedImageAsBase64) {
+                alert('Please paste a screenshot into the box first.');
+                return;
+            }
+
+            let markdownString = `**Q${currentQuestionNumber}.**\n`;
+            markdownString += `![Question ${currentQuestionNumber} Image](${pastedImageAsBase64})\n`;
+
+            const mainTextArea = document.getElementById('finalQuestionsText');
+            mainTextArea.value += (mainTextArea.value ? '\n---\n\n' : '') + markdownString;
+            mainTextArea.scrollTop = mainTextArea.scrollHeight;
+
+            // Reset for next question
+            currentQuestionNumber++;
+            document.getElementById('currentQNumLabel').textContent = currentQuestionNumber;
+            pastedImageAsBase64 = null;
+            document.getElementById('paste-preview').style.display = 'none';
+            document.getElementById('paste-text').style.display = 'block';
+            pasteZone.classList.remove('pasting');
+        });
+        
+        pasteZone.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent default Enter behavior in a form
+                addQuestionBtn.click();
+            }
+        });
+
+
+        async function processFinalText(textContent) {
+             const answerKeyText = document.getElementById('answerKey').value.trim();
+             
+            const questions = textContent.split('---').map(q => q.trim()).filter(Boolean);
+            if (questions.length === 0) {
+                throw new Error("No questions found. Please ensure the text is formatted correctly and questions are separated by '---'.");
+            }
+
+            let answerKey = {};
+            if (answerKeyText) {
+                answerKey = parseAnswerKey(answerKeyText);
+            }
+
+            const docRef = await addDoc(collection(db, "quizzes"), {
+                questions: questions,
+                answerKey: answerKey,
+                createdAt: new Date()
+            });
+            
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('correction-section').style.display = 'none';
+            document.getElementById('result-section').style.display = 'block';
+            showResult(docRef.id);
+        }
+
+
+        function showError(message) {
+            const currentErrorBox = document.getElementById('correction-section').style.display !== 'none' ? correctionErrorBox : errorBox;
+            currentErrorBox.innerHTML = message;
+            currentErrorBox.style.display = 'block';
+            
             uploadBtn.disabled = false;
             uploadBtn.textContent = 'Upload & Continue';
-        }
-    });
-
-    generateBtn.addEventListener('click', async () => {
-        generateBtn.disabled = true;
-        generateBtn.textContent = 'Generating...';
-        const correctedText = document.getElementById('extractedText').value;
-        try {
-            await processFinalText(correctedText);
-        } catch (err) {
-            showError(err.message);
-        } finally {
             generateBtn.disabled = false;
-            generateBtn.textContent = 'Generate Quiz ID';
-        }
-    });
-
-    async function processFinalText(textContent) {
-        const answerKeyText = document.getElementById('answerKey').value.trim();
-
-        const questions = textContent.split('---').map(q => q.trim()).filter(Boolean);
-        if (questions.length === 0) {
-            throw new Error("No questions found. Please ensure questions are separated by '---'.");
+            generateBtn.textContent = 'Finalize and Generate Quiz ID';
         }
 
-        let answerKey = {};
-        if (answerKeyText) {
-            answerKey = parseAnswerKey(answerKeyText);
+        function showResult(id) {
+            document.getElementById('quizId').textContent = id;
+            document.getElementById('result').style.display = 'block';
         }
 
-        const docRef = await addDoc(collection(db, "quizzes"), {
-            questions: questions,
-            answerKey: answerKey,
-            createdAt: new Date()
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const quizId = document.getElementById('quizId').textContent;
+            navigator.clipboard.writeText(quizId).then(() => {
+                alert('Quiz ID copied to clipboard!');
+            });
         });
 
-        document.getElementById('upload-section').style.display = 'none';
-        document.getElementById('correction-section').style.display = 'none';
-        document.getElementById('result-section').style.display = 'block';
-        showResult(docRef.id);
-    }
-
-
-    function showError(message) {
-        errorBox.textContent = message;
-        errorBox.style.display = 'block';
-        uploadBtn.disabled = false;
-        uploadBtn.textContent = 'Upload & Continue';
-        generateBtn.disabled = false;
-        generateBtn.textContent = 'Generate Quiz ID';
-    }
-
-    function showResult(id) {
-        document.getElementById('quizId').textContent = id;
-        document.getElementById('result').style.display = 'block';
-    }
-
-    document.getElementById('copyBtn').addEventListener('click', () => {
-        const quizId = document.getElementById('quizId').textContent;
-        navigator.clipboard.writeText(quizId).then(() => {
-            alert('Quiz ID copied to clipboard!');
-        });
-    });
-
-    async function parseQuestionFile(file) {
-        if (file.type === 'application/pdf') {
-            return readPdfFile(file);
-        } else {
-            return readTextFile(file);
-        }
-    }
-
-    function readTextFile(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = () => reject(new Error('Failed to read the text file.'));
-            reader.readAsText(file);
-        });
-    }
-
-    async function readPdfFile(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const pdfData = new Uint8Array(e.target.result);
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
-                    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-                    let fullText = '';
-                    const previewContainer = document.getElementById('pdf-preview-pages');
-                    previewContainer.innerHTML = '';
-
-                    for (let i = 1; i <= pdf.numPages; i++) {
-                        const page = await pdf.getPage(i);
-
-                        const viewport = page.getViewport({ scale: 1 });
-                        const canvas = document.createElement('canvas');
-                        const context = canvas.getContext('2d');
-                        canvas.height = viewport.height;
-                        canvas.width = viewport.width;
-                        previewContainer.appendChild(canvas);
-                        await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-                        const textContent = await page.getTextContent();
-                        const pageText = textContent.items.map(item => item.str).join(' ');
-                        fullText += pageText + '\n\n';
-                    }
-                    resolve(fullText);
-                } catch (error) {
-                    console.error('Error parsing PDF:', error);
-                    reject(new Error('Could not parse the PDF file. Ensure it is a valid, text-based PDF.'));
-                }
-            };
-            reader.onerror = () => reject(new Error('Failed to read the PDF file.'));
-            reader.readAsArrayBuffer(file);
-        });
-    }
-
-    function parseAnswerKey(text) {
-        const key = {};
-        const entries = text.split(',').map(entry => entry.trim());
-        for (const entry of entries) {
-            const parts = entry.split(':').map(part => part.trim());
-            if (parts.length === 2) {
-                const qNum = parts[0];
-                const answer = parts[1].toUpperCase();
-                if (!isNaN(qNum) && ['A', 'B', 'C', 'D'].includes(answer)) {
-                    key[qNum] = answer;
-                }
+        async function parseQuestionFile(file) {
+            if (file.type === 'application/pdf') {
+                await renderPdfPreview(file);
+                // For PDFs, we start with an empty text area for manual construction
+                return ""; 
+            } else {
+                return readTextFile(file);
             }
         }
-        if (Object.keys(key).length === 0 && text.length > 0) {
-            throw new Error('Answer key format is invalid. Please use format like "1:A, 2:C, ...".');
+
+        function readTextFile(file) {
+             return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = () => reject(new Error('Failed to read the text file.'));
+                reader.readAsText(file);
+            });
         }
-        return key;
-    }
-</script>
+
+        async function renderPdfPreview(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const pdfData = new Uint8Array(e.target.result);
+                        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+                        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+                        const previewContainer = document.getElementById('pdf-preview-pages');
+                        previewContainer.innerHTML = '';
+                        
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const viewport = page.getViewport({ scale: 1.5 });
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+                            previewContainer.appendChild(canvas);
+                            await page.render({ canvasContext: context, viewport: viewport }).promise;
+                        }
+                        resolve();
+                    } catch (error) {
+                        console.error('Error rendering PDF:', error);
+                        reject(new Error('Could not display the PDF file.'));
+                    }
+                };
+                reader.onerror = () => reject(new Error('Failed to read the PDF file.'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function parseAnswerKey(text) {
+            const key = {};
+            const entries = text.split(',').map(entry => entry.trim());
+            for (const entry of entries) {
+                const parts = entry.split(':').map(part => part.trim());
+                if (parts.length === 2) {
+                    const qNum = parts[0];
+                    const answer = parts[1].toUpperCase();
+                    if (!isNaN(qNum) && ['A', 'B', 'C', 'D'].includes(answer)) {
+                        key[qNum] = answer;
+                    }
+                }
+            }
+             if (Object.keys(key).length === 0 && text.length > 0) {
+                throw new Error('Answer key format is invalid. Please use format like "1:A, 2:C, ...".');
+            }
+            return key;
+        }
+    </script>
 </body>
 </html>
 
