@@ -4,6 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>CSIR NET OMR — Feb 2025 (Final)</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root{
             --bg:#f6f8fb;--card:#fff;--muted:#6b7280;--text:#0f172a;--accent:#6d28d9;
@@ -36,7 +39,7 @@
             gap: 8px;
         }
         .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-        button, a.button{padding:8px 10px;border-radius:8px;border:1px solid #e6eef8;background:#fff;cursor:pointer;font-weight:600;text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:8px}
+        button, a.button, .file-upload-label {padding:8px 10px;border-radius:8px;border:1px solid #e6eef8;background:#fff;cursor:pointer;font-weight:600;text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:8px}
         .primary{background:var(--accent);color:#fff;border-color:transparent}
         .danger{background:var(--bad);color:#fff;border-color:transparent}
         .ghost{background:#fff;color:var(--text)}
@@ -45,8 +48,9 @@
         .green-btn{background:var(--green)!important;color:#fff!important;}
         .red-btn{background:var(--bad)!important;color:#fff!important;}
         .omr{border-top:1px solid #eef2f7;padding-top:12px;display:block;height:75vh;overflow:auto;padding-right: 10px;}
-        .row{display:flex;align-items:center;gap:10px;padding:6px;border-radius:6px;border:1px solid #f1f5f9;background:#fcfeff;margin-bottom:4px;flex-wrap:wrap;}
-        .qno{width:56px;text-align:center;font-weight:700;color:blue;transition:background 0.2s, color 0.2s;}
+        .row{display:flex; flex-direction: column; align-items: flex-start; gap:10px;padding:12px;border-radius:6px;border:1px solid #f1f5f9;background:#fcfeff;margin-bottom:4px;}
+        .row-header { display: flex; align-items: center; width: 100%; gap: 10px; }
+        .qno{width:56px; text-align:center;font-weight:700;color:blue;transition:background 0.2s, color 0.2s; flex-shrink: 0;}
         .qno.answered{background:var(--answered);color:#fff;}
         .qno.blue{background:var(--ok);color:#fff;}
         .qno.yellow{background:var(--yellow);color:#fff;}
@@ -55,42 +59,14 @@
         .bubbles{display:flex;gap:10px;align-items:center}
         .bubble{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid #e6eef8;background:#fff;cursor:pointer;font-weight:600}
         input[type="radio"]{accent-color:var(--accent);width:18px;height:18px}
-        .flag{margin-left:auto;font-size:12px;padding:6px 10px;border-radius:999px;background:var(--warn);color:#fff;display:none}
-        .question-controls{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;}
-        .review-box{background:#eef7ff;padding:7px 12px;border-radius:7px;font-size:14px;margin-top:4px;}
-        .part-summary {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 16px;
-            margin-bottom: 16px;
-            padding: 10px;
-            background-color: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #eef2f7;
-            flex-wrap: wrap;
-        }
-        .part-summary .card {
-            padding: 8px 12px;
-            border-radius: 6px;
-            background: #fff;
-            font-size: 14px;
-            text-align: center;
-            border: 1px solid #e2e8f0;
-            min-width: 120px;
-        }
-        .part-summary .card strong {
-            display: block;
-            font-weight: 600;
-            color: var(--muted);
-            margin-bottom: 4px;
-            font-size: 12px;
-        }
-        .part-summary .card span {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--accent);
-        }
+        .question-content { width: 100%; margin-bottom: 8px; padding-bottom: 10px; border-bottom: 1px solid #eef2f7; font-size: 16px; }
+        .question-content img { max-width: 100%; height: auto; border-radius: 6px; margin-top: 8px; }
+        .question-controls{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+        .review-box{background:#eef7ff;padding:7px 12px;border-radius:7px;font-size:14px;margin-top:4px; width: 100%;}
+        .part-summary { display: flex; gap: 10px; justify-content: center; margin-top: 16px; margin-bottom: 16px; padding: 10px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #eef2f7; flex-wrap: wrap; }
+        .part-summary .card { padding: 8px 12px; border-radius: 6px; background: #fff; font-size: 14px; text-align: center; border: 1px solid #e2e8f0; min-width: 120px; }
+        .part-summary .card strong { display: block; font-weight: 600; color: var(--muted); margin-bottom: 4px; font-size: 12px; }
+        .part-summary .card span { font-size: 18px; font-weight: 700; color: var(--accent); }
         #student-info { padding: 10px; background-color: #f8fafc; border-radius: 8px; margin-bottom: 12px; font-size: 14px; border: 1px solid #eef2f7; }
         #part-nav { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         #part-nav button { flex: 1; background-color: magenta; color: white; border-color: magenta; }
@@ -101,7 +77,7 @@
         .palette-item.blue { background-color: var(--ok); color: #fff; border-color: var(--ok); }
         .palette-item.yellow { background-color: var(--yellow); color: #fff; border-color: var(--yellow); }
         .palette-item.green { background-color: var(--green); color: #fff; border-color: var(--green); }
-        
+
         .result{margin-top:12px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7}
         #responseSheet{margin-top:16px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7;display:none}
         #responseSheet .qline{margin-bottom:6px;font-size:14px}
@@ -114,10 +90,11 @@
         #emailBox input { width: 90%; margin-top: 10px; padding: 8px; font-size: 16px;}
         #emailBox button { margin-top: 16px; width: 100%; }
         #emailBox .error { color: var(--bad); margin-top: 8px; }
+        #question-uploader { border: 1px solid #eef2f7; padding: 10px; border-radius: 8px; margin: 16px 0; }
         @media print{
             body{background:white;margin:0}
             .container{box-shadow:none;border-radius:0;padding:8px;max-width:100%}
-            .controls, .summary, .omr, #timer, #sendMailBtn, .part-summary, #part-nav, .question-palette, .right-sidebar {display:none}
+            .controls, .summary, .omr, #timer, #sendMailBtn, .part-summary, #part-nav, .question-palette, .right-sidebar, #question-uploader {display:none}
             #responseSheet{display:block !important}
             #emailOverlay{display:none !important;}
         }
@@ -129,6 +106,11 @@
         <h2>Enter your Name and Gmail</h2>
         <input type="text" id="userName" placeholder="Your Name" required>
         <input type="email" id="userEmail" placeholder="example@gmail.com" required>
+        <div id="question-uploader">
+            <label for="questionFile" class="file-upload-label">Upload Question Paper (.txt/.md)</label>
+            <input type="file" id="questionFile" accept=".txt,.md" style="display: none;">
+            <span id="fileName">No file chosen</span>
+        </div>
         <button onclick="showQuiz()">Start Quiz</button>
         <div class="error" id="overlayError" style="display:none;"></div>
     </div>
@@ -138,7 +120,7 @@
         <div class="main-content">
             <h1>CSIR NET — OMR Style (Feb 2025 Key)</h1>
             <p class="lead">Attempt limits: Part A ≤ 15, Part B ≤ 25, Part C ≤ 30. Negative marking: 1/4.</p>
-             <div class="controls">
+            <div class="controls">
                 <button id="clearAll" class="ghost">Clear All</button>
                 <button id="markAllReview" class="ghost">Mark All Review</button>
                 <button id="submitBtn" class="primary">Submit & Evaluate</button>
@@ -182,9 +164,12 @@
                 <button onclick="jumpToPart('partB')">Part B</button>
                 <button onclick="jumpToPart('partC')">Part C</button>
             </div>
-            <div class="question-palette" id="palette-A"></div>
-            <div class="question-palette" id="palette-B"></div>
-            <div class="question-palette" id="palette-C"></div>
+            <div id="palette-container">
+                <h3>Question Palette</h3>
+                <div class="question-palette" id="palette-A"></div>
+                <div class="question-palette" id="palette-B"></div>
+                <div class="question-palette" id="palette-C"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -192,10 +177,21 @@
 <script>
     const QUIZ_STATE_KEY = 'csirQuizState';
 
-    function showQuiz() {
+    document.getElementById('questionFile').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            document.getElementById('fileName').textContent = file.name;
+        } else {
+            document.getElementById('fileName').textContent = 'No file chosen';
+        }
+    });
+
+    async function showQuiz() {
         var name = document.getElementById('userName').value.trim();
         var email = document.getElementById('userEmail').value.trim();
         var errorBox = document.getElementById('overlayError');
+        const fileInput = document.getElementById('questionFile');
+
         if(!name) {
             errorBox.textContent = "Please enter your name.";
             errorBox.style.display = "block";
@@ -206,17 +202,62 @@
             errorBox.style.display = "block";
             return;
         }
+        if (fileInput.files.length === 0) {
+            errorBox.textContent = "Please upload a question paper file.";
+            errorBox.style.display = "block";
+            return;
+        }
+
         errorBox.style.display = "none";
+
+        await loadQuestionsFromFile(fileInput.files[0]);
+
         document.getElementById('emailOverlay').style.display = "none";
         document.querySelector('.container').style.display = 'block';
 
         window.quizUserEmail = email;
         window.quizUserName = name;
         document.getElementById('student-info').innerHTML = `<strong>Name:</strong> ${name} | <strong>Email:</strong> ${email}`;
-        
+
         startTimer();
         saveQuizState();
     }
+
+    function loadQuestionsFromFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const questions = content.split('---').map(q => q.trim()).filter(q => q);
+
+                questions.forEach((qText) => {
+                    const qNumMatch = qText.match(/\*\*Q(\d+)\.\*\*/);
+                    if (qNumMatch) {
+                        const qNum = parseInt(qNumMatch[1], 10);
+                        const questionRow = document.querySelector(`.row[data-q="${qNum}"]`);
+                        if (questionRow) {
+                            let contentDiv = questionRow.querySelector('.question-content');
+                            if (!contentDiv) {
+                                contentDiv = document.createElement('div');
+                                contentDiv.className = 'question-content';
+                                // Insert after the header, but before the other elements
+                                questionRow.insertBefore(contentDiv, questionRow.children[1]);
+                            }
+                            const markdownContent = qText.replace(/\*\*Q\d+\.\*\*\s*/, '');
+                            contentDiv.innerHTML = marked.parse(markdownContent);
+                        }
+                    }
+                });
+                if (window.MathJax) {
+                    MathJax.typeset();
+                }
+                resolve();
+            };
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+
 </script>
 <script>
     const PART_A={start:1,end:20,marks:2,maxAttempt:15};
@@ -239,7 +280,13 @@
         const container = document.getElementById(containerId);
         for(let q=start; q<=end; q++){
             const row=document.createElement('div');row.className='row';row.dataset.q=q;
-            const qno=document.createElement('div');qno.className='qno';qno.textContent='Q'+q;row.appendChild(qno);
+
+            const rowHeader = document.createElement('div');
+            rowHeader.className = 'row-header';
+
+            const qno=document.createElement('div');qno.className='qno';qno.textContent='Q'+q;
+            rowHeader.appendChild(qno);
+
             const bubbles=document.createElement('div');bubbles.className='bubbles';
             ['A','B','C','D'].forEach(letter=>{
                 const lbl=document.createElement('label');lbl.className='bubble';
@@ -252,7 +299,8 @@
                 };
                 bubbles.appendChild(lbl);
             });
-            row.appendChild(bubbles);
+            rowHeader.appendChild(bubbles);
+
             const qControls=document.createElement('div');
             qControls.className="question-controls";
             qControls.innerHTML=`
@@ -260,13 +308,20 @@
                 <button type="button" class="green-btn" onclick="reviewSubmitQ(${q},this)">Review & Submit</button>
                 <button type="button" class="yellow-btn" onclick="reviewQ(${q},this)">Review</button>
                 <button type="button" class="red-btn" onclick="clearQ(${q},this)">Clear</button>
-                <div class="review-box" id="reviewBox${q}" style="display:none;"></div>
             `;
-            row.appendChild(qControls);
+            rowHeader.appendChild(qControls);
+            row.appendChild(rowHeader);
+
+            const reviewBox = document.createElement('div');
+            reviewBox.className = 'review-box';
+            reviewBox.id = `reviewBox${q}`;
+            reviewBox.style.display = 'none';
+            row.appendChild(reviewBox);
+
             container.appendChild(row);
         }
     }
-    
+
     let totalSeconds = 180 * 60;
     let timerInterval;
     const timeDisplay = document.getElementById('timeDisplay');
@@ -305,9 +360,9 @@
             timerInterval = setInterval(updateTimer, 1000);
         }
     }
-    
+
     function countInRange(s,e){let c=0;for(let q=s;q<=e;q++){if(document.querySelector(`input[name="q${q}"]:checked`))c++;}return c;}
-    
+
     function countStatusInRange(start, end, statusClass) {
         let count = 0;
         for (let q = start; q <= end; q++) {
@@ -322,7 +377,7 @@
         const attempted = countInRange(partConfig.start, partConfig.end);
         const markedReview = countStatusInRange(partConfig.start, partConfig.end, 'yellow');
         const lockedReview = countStatusInRange(partConfig.start, partConfig.end, 'green');
-        
+
         const container = document.getElementById(containerId);
         container.innerHTML = `
             <div class="card"><strong>Attempted</strong><span>${attempted}</span></div>
@@ -381,7 +436,7 @@
         let box = document.getElementById('reviewBox'+q);
         box.style.background = 'skyblue';
         box.style.color = 'var(--text)';
-        setQnoColor(q,"green"); 
+        setQnoColor(q,"green");
         reviewOnlyQs[q] = false;
         saveQuizState();
     }
@@ -410,7 +465,7 @@
     }
     function showReviewBox(q, msg){
         let box=document.getElementById('reviewBox'+q);
-        box.style.display='';
+        box.style.display='block';
         box.innerHTML=msg;
     }
     function scorePart(cfg){
@@ -486,7 +541,7 @@
     };
 
     function saveQuizState() {
-        if (!window.quizUserName) return; 
+        if (!window.quizUserName) return;
 
         const state = {
             userName: window.quizUserName,
@@ -507,9 +562,9 @@
             const status = classList.filter(c => c !== 'qno').join(' ');
 
             if(status) {
-                state.qStates[q] = { 
-                    status: status, 
-                    disabled: document.querySelector(`input[name="q${q}"]`).disabled 
+                state.qStates[q] = {
+                    status: status,
+                    disabled: document.querySelector(`input[name="q${q}"]`).disabled
                 };
             }
         }
@@ -540,10 +595,10 @@
                 if (state.qStates[q].disabled) {
                     document.querySelectorAll(`input[name="q${q}"]`).forEach(r => r.disabled = true);
                 }
-                
+
                 let box = document.getElementById('reviewBox'+q);
                 let statusClasses = state.qStates[q].status.split(' ');
-                
+
                 if (statusClasses.includes('blue')) {
                     showReviewBox(q, "Submitted and locked. Your answer: " + (state.answers[q] || "Not Attempted"));
                     box.style.background = '#dcfce7'; box.style.color = 'var(--text)';
@@ -551,7 +606,7 @@
                     showReviewBox(q, "Review and Lock");
                     box.style.background = 'skyblue'; box.style.color = 'var(--text)';
                 } else if (statusClasses.includes('yellow')) {
-                     showReviewBox(q, "Review");
+                    showReviewBox(q, "Review");
                     box.style.background = '#fef9c3'; box.style.color = 'var(--text)';
                 }
             }
@@ -562,7 +617,7 @@
         updateCounts();
         startTimer();
     }
-    
+
     function buildQuestionPalette() {
         const createPalette = (partConfig, containerId) => {
             const palette = document.getElementById(containerId);
@@ -614,8 +669,8 @@
                     document.getElementById(paletteId).classList.add('active');
                 }
             }
-        }, { 
-            root: document.getElementById('omr'), 
+        }, {
+            root: document.getElementById('omr'),
             threshold: Array.from({length: 101}, (_, i) => i / 100)
         });
 
