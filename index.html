@@ -115,7 +115,7 @@
     <div class="quiz-layout">
         <div class="main-content">
             <h1 id="quizTitle">CSIR NET — OMR Style</h1>
-            <p id="quizLead" class="lead"></p>
+            <p id="quizLead" class="lead">Attempt limits: Part A ≤ 15, Part B ≤ 35, Part C ≤ 25. Negative marking: 25%.</p>
              <div class="controls">
                 <button id="clearAll" class="ghost">Clear All</button>
                 <button id="markAllReview" class="ghost">Mark All Review</button>
@@ -124,7 +124,24 @@
                 <button id="pdfBtn" class="ghost">Download PDF</button>
             </div>
             <div class="omr" id="omr">
-                <!-- Part content will be generated dynamically -->
+                <h2 id="partAHeading" data-part="A">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part A
+                </h2>
+                <div id="partA"></div>
+                <div class="part-summary" id="partASummary"></div>
+                <h2 id="partBHeading" data-part="B">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part B
+                </h2>
+                <div id="partB"></div>
+                <div class="part-summary" id="partBSummary"></div>
+                <h2 id="partCHeading" data-part="C">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part C
+                </h2>
+                <div id="partC"></div>
+                <div class="part-summary" id="partCSummary"></div>
             </div>
             <div id="resultPane" class="result" style="display:none"></div>
             <div id="responseSheet"></div>
@@ -139,11 +156,15 @@
                 Time Left: <span id="timeDisplay">--:--:--</span>
             </div>
             <div id="part-nav">
-                <!-- Part buttons will be generated dynamically -->
+                <button onclick="jumpToPart('partA')">Part A</button>
+                <button onclick="jumpToPart('partB')">Part B</button>
+                <button onclick="jumpToPart('partC')">Part C</button>
             </div>
             <div id="palette-container">
                 <h3>Question Palette</h3>
-                <!-- Palettes will be generated dynamically -->
+                <div class="question-palette" id="palette-A"></div>
+                <div class="question-palette" id="palette-B"></div>
+                <div class="question-palette" id="palette-C"></div>
             </div>
         </div>
     </div>
@@ -214,7 +235,15 @@
                 throw new Error("Invalid Quiz ID. Please check and try again.");
             }
             const quizData = quizDoc.data();
-            window.quizConfig = quizData.config;
+            // This is the CRITICAL CHANGE: The app now uses a static config object.
+            window.quizConfig = {
+                totalTime: 180,
+                parts: [
+                    { name: "A", count: 20, marks: 2, neg_frac: 0.25, maxAttempt: 15 },
+                    { name: "B", count: 40, marks: 2, neg_frac: 0.25, maxAttempt: 35 },
+                    { name: "C", count: 60, marks: 4, neg_frac: 0.25, maxAttempt: 25 }
+                ]
+            };
             window.answerKey = quizData.answerKey;
 
             const attemptsRef = collection(db, "quizzes", quizId, "attempts");
@@ -239,7 +268,7 @@
             
             const serverStartTime = attemptDoc.data().startTime.toDate();
             
-            buildQuizLayout(quizData.config);
+            buildQuizLayout(window.quizConfig);
             await loadQuestionsFromData(quizData.questions);
 
             document.getElementById('emailOverlay').style.display = "none";
@@ -249,7 +278,7 @@
             window.quizUserName = name;
             document.getElementById('student-info').innerHTML = `<strong>Name:</strong> ${name} | <strong>Email:</strong> ${email}`;
             
-            startTimer(serverStartTime, quizData.config.totalTime);
+            startTimer(serverStartTime, window.quizConfig.totalTime);
             loadQuizState();
         } catch(err) {
             errorBox.textContent = err.message;
@@ -440,19 +469,9 @@
     }
 
     function updatePartSummary(partConfig, containerId) {
-        let qCounter = 1;
-        for (let i = 0; i < window.quizConfig.parts.length; i++) {
-            if (window.quizConfig.parts[i].name === partConfig.name) {
-                break;
-            }
-            qCounter += window.quizConfig.parts[i].count;
-        }
-        const startQ = qCounter;
-        const endQ = startQ + partConfig.count - 1;
-
-        const attempted = countInRange(startQ, endQ);
-        const markedReview = countStatusInRange(startQ, endQ, 'yellow');
-        const lockedReview = countStatusInRange(startQ, endQ, 'green');
+        const attempted = countInRange(partConfig.start, partConfig.end);
+        const markedReview = countStatusInRange(partConfig.start, partConfig.end, 'yellow');
+        const lockedReview = countStatusInRange(partConfig.start, partConfig.end, 'green');
         
         const container = document.getElementById(containerId);
         container.innerHTML = `
