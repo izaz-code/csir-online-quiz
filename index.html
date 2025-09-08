@@ -235,6 +235,717 @@
                 throw new Error("Invalid Quiz ID. Please check and try again.");
             }
             const quizData = quizDoc.data();
+            window.answerKey = quizData.answerKey;
+
+            const attemptsRef = collection(db, "quizzes", quizId, "attempts");
+            const q = query(attemptsRef, where("email", "==", email));
+            const querySnapshot = await getDocs(q);
+
+            let attemptDoc;
+            if (!querySnapshot.empty && email !== ADMIN_EMAIL) {
+                throw new Error("You have already attempted this quiz. Multiple attempts are not allowed.");
+            }
+
+            if (querySnapshot.empty) {
+                 const newAttemptRef = await addDoc(attemptsRef, {
+                    email: email,
+                    name: name,
+                    startTime: serverTimestamp()
+                });
+                attemptDoc = await getDoc(newAttemptRef);
+            } else { 
+                attemptDoc = querySnapshot.docs[0];
+            }
+            
+            const serverStartTime = attemptDoc.data().startTime.toDate();
+            
+            buildQuizLayout();
+            await loadQuestionsFromData(quizData.questions);
+
+            document.getElementById('emailOverlay').style.display = "none";
+            document.querySelector('.container').style.display = 'block';
+
+            window.quizUserEmail = email;
+            window.quizUserName = name;
+            document.getElementById('student-info').innerHTML = `<strong>Name:</strong> ${name} | <strong>Email:</strong> ${email}`;
+            
+            startTimer(serverStartTime, 180);
+            loadQuizState();
+        } catch(err) {
+            errorBox.textContent = err.message;
+            errorBox.style.display = "block";
+            startQuizBtn.disabled = false;
+            startQuizBtn.textContent = "Start Quiz";
+        }
+    }
+
+    function loadQuestionsFromData(questions) {
+        return new Promise((resolve) => {
+            questions.forEach((qText) => {
+                const qNumMatch = qText.match(/\*\*Q(\d+)\.\*\*/);
+                if (qNumMatch) {
+                    const qNum = parseInt(qNumMatch[1], 10);
+                    const questionRow = document.querySelector(`.row[data-q="${qNum}"]`);
+                    if (questionRow) {
+                        let contentDiv = questionRow.querySelector('.question-content');
+                        if (!contentDiv) {
+                            contentDiv = document.createElement('div');
+                            contentDiv.className = 'question-content';
+                            questionRow.insertBefore(contentDiv, questionRow.firstChild);
+                        }
+                        const markdownContent = qText.replace(/\*\*Q\d+\.\*\*\s*/, '');
+                        contentDiv.innerHTML = marked.parse(markdownContent);
+                    }
+                }
+            });
+            if (window.MathJax) {
+                MathJax.typeset();
+            }
+            resolve();
+        });
+    }
+</script>
+
+<script>
+    const QUIZ_STATE_KEY_PREFIX = 'csirQuizState_';
+    let QUIZ_STATE_KEY = 'csirQuizState_default'; 
+    
+    const PART_A={start:1,end:20,marks:2,neg_frac:0.25,maxAttempt:15, name: 'A'};
+    const PART_B={start:21,end:60,marks:2,neg_frac:0.25,maxAttempt:35, name: 'B'};
+    const PART_C={start:61,end:120,marks:4,neg_frac:0.25,maxAttempt:25, name: 'C'};
+    const ALL_PARTS = [PART_A, PART_B, PART_C];
+
+    let reviewOnlyQs = {};
+    let timerInterval;
+
+    function buildQuizLayout() {
+        buildSection(PART_A.start, PART_A.end, 'partA');
+        buildSection(PART_B.start, PART_B.end, 'partB');
+        buildSection(PART_C.start, PART_C.end, 'partC');
+        buildQuestionPalette();
+        setupPaletteObserver();
+        document.getElementById('palette-A').classList.add('active');
+    }
+    
+    function buildSection(start, end, containerId){
+        const container = document.getElementById(containerId);
+        for(let q=start; q<=end; q++){
+            const row=document.createElement('div');row.className='row';row.dataset.q=q;
+            
+            const rowHeader = document.createElement('div');
+            rowHeader.className = 'row-header';
+
+            const qno=document.createElement('div');qno.className='qno';qno.textContent='Q'+q;
+            rowHeader.appendChild(qno);
+            
+            const bubbles=document.createElement('div');bubbles.className='bubbles';
+            ['A','B','C','D'].forEach(letter=>{
+                const lbl=document.createElement('label');lbl.className='bubble';
+                lbl.innerHTML=`<input type="radio" name="q${q}" value="${letter}"/> ${letter}`;
+                lbl.ondblclick=function(e){
+                    let radios = document.querySelectorAll(`input[name="q${q}"]`);
+                    radios.forEach(r=>{r.checked=false;});
+                    setQnoColor(q,null);
+                    saveQuizState();
+                };
+                bubbles.appendChild(lbl);
+            });
+            rowHeader.appendChild(bubbles);
+
+            const qControls=document.createElement('div');
+            qControls.className="question-controls";
+            qControls.innerHTML=`
+                <button type="button" class="blue-btn" onclick="submitQ(${q},this)">Submit</button>
+                <button type="button" class="green-btn" onclick="reviewSubmitQ(${q},this)">Review & Submit</button>
+                <button type="button" class="yellow-btn" onclick="reviewQ(${q},this)">Review</button>
+                <button type="button" class="red-btn" onclick="clearQ(${q},this)">Clear</button>
+            `;
+            rowHeader.appendChild(qControls);
+            row.appendChild(rowHeader);
+            
+            const reviewBox = document.createElement('div');
+            reviewBox.className = 'review-box';
+            reviewBox.id = `reviewBox${q}`;
+            reviewBox.style.display = 'none';
+            row.appendChild(reviewBox);
+
+            container.appendChild(row);
+        }
+    }
+    
+    let endTime;
+    const timeDisplay = document.getElementById('timeDisplay');
+
+    function showNotification(message, type = 'info') {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.style.backgroundColor = (type === 'error') ? 'var(--bad)' : 'var(--accent)';
+        notification.style.display = 'block';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 3000);
+    }
+
+    function formatTime(sec){
+        if (sec < 0) sec = 0;
+        let hrs = Math.floor(sec / 3600);
+        let mins = Math.floor((sec % 3600) / 60);
+        let secs = sec % 60;
+        return `${hrs.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+    }
+    function updateTimer(){
+        const totalSeconds = Math.round((endTime - Date.now()) / 1000);
+        if(totalSeconds <= 0){
+            clearInterval(timerInterval);
+            showNotification("Time is up! The exam will be submitted automatically.", 'info');
+            document.getElementById('submitBtn').click();
+            return;
+        }
+        timeDisplay.textContent = formatTime(totalSeconds);
+        if (totalSeconds % 5 === 0) {
+            saveQuizState();
+        }
+    }
+    function startTimer(startTime, totalMinutes) {
+        endTime = startTime.getTime() + totalMinutes * 60 * 1000;
+        if (!timerInterval) {
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+    }
+    
+    function countInRange(start,end){let c=0;for(let q=start;q<=end;q++){if(document.querySelector(`input[name="q${q}"]:checked`))c++;}return c;}
+    
+    function countStatusInRange(start, end, statusClass) {
+        let count = 0;
+        for (let q = start; q <= end; q++) {
+            if (document.querySelector(`.row[data-q="${q}"] .qno.${statusClass}`)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    function updatePartSummary(partConfig, containerId) {
+        const attempted = countInRange(partConfig.start, partConfig.end);
+        const markedReview = countStatusInRange(partConfig.start, partConfig.end, 'yellow');
+        const lockedReview = countStatusInRange(partConfig.start, partConfig.end, 'green');
+        
+        const container = document.getElementById(containerId);
+        container.innerHTML = `
+            <div class="card"><strong>Attempted</strong><span>${attempted}</span></div>
+            <div class="card"><strong>Marked Review</strong><span>${markedReview}</span></div>
+            <div class="card"><strong>Locked Review</strong><span>${lockedReview}</span></div>
+        `;
+    }
+
+    function updateCounts(){
+        ALL_PARTS.forEach(part => {
+             updatePartSummary(part, `part${part.name}Summary`);
+        });
+    }
+    document.body.addEventListener('change',(e)=>{
+        if(e.target.type!=='radio')return;
+        const q=parseInt(e.target.name.slice(1),10);
+        
+        const part = ALL_PARTS.find(p => q >= p.start && q <= p.end);
+
+        if(part && countInRange(part.start, part.end) > part.maxAttempt){
+            e.target.checked=false;
+            showNotification('Attempt limit reached for this section.', 'error');
+        }
+        setQnoColor(q, 'answered');
+        saveQuizState();
+    });
+
+    function updatePaletteColor(q, colorClass) {
+        const paletteItem = document.getElementById(`q-palette-${q}`);
+        if (paletteItem) {
+            paletteItem.className = 'palette-item';
+            if (colorClass) {
+                paletteItem.classList.add(colorClass);
+            }
+        }
+    }
+
+    function setQnoColor(q, colorClass) {
+        let qno = document.querySelector(`.row[data-q="${q}"] .qno`);
+        qno.classList.remove("answered", "blue","yellow","green","red");
+        if(colorClass) qno.classList.add(colorClass);
+        updatePaletteColor(q, colorClass);
+        updateCounts();
+    }
+    function submitQ(q,btn){
+        document.querySelectorAll(`input[name="q${q}"]`).forEach(r=>r.disabled=true);
+        showReviewBox(q, "Submitted and locked. Your answer: "+(getSelected(q)||"Not Attempted"));
+        let box = document.getElementById('reviewBox'+q);
+        box.style.background = '#dcfce7';
+        box.style.color = 'var(--text)';
+        setQnoColor(q,"blue");
+        reviewOnlyQs[q] = false;
+        saveQuizState();
+    }
+    function reviewSubmitQ(q,btn){
+        document.querySelectorAll(`input[name="q${q}"]`).forEach(r=>r.disabled=true);
+        showReviewBox(q, "Review and Lock");
+        let box = document.getElementById('reviewBox'+q);
+        box.style.background = 'skyblue';
+        box.style.color = 'var(--text)';
+        setQnoColor(q,"green"); 
+        reviewOnlyQs[q] = false;
+        saveQuizState();
+    }
+    function reviewQ(q,btn){
+        showReviewBox(q, "Review");
+        let box = document.getElementById('reviewBox'+q);
+        box.style.background = '#fef9c3';
+        box.style.color = 'var(--text)';
+        setQnoColor(q,"yellow");
+        reviewOnlyQs[q] = true;
+        saveQuizState();
+    }
+    function clearQ(q,btn){
+        document.querySelectorAll(`input[name="q${q}"]`).forEach(r=>{r.checked=false;r.disabled=false;});
+        showReviewBox(q, "Selection cleared. You can now reattempt.");
+        let box = document.getElementById('reviewBox'+q);
+        box.style.background = '#eef7ff';
+        box.style.color = 'var(--text)';
+        setQnoColor(q,null);
+        reviewOnlyQs[q] = false;
+        saveQuizState();
+    }
+    function getSelected(q){
+        let sel=document.querySelector(`input[name="q${q}"]:checked`);
+        return sel?sel.value:null;
+    }
+    function showReviewBox(q, msg){
+        let box=document.getElementById('reviewBox'+q);
+        box.style.display='block';
+        box.innerHTML=msg;
+    }
+    function scorePart(partConfig){
+        let correct=0,wrong=0,unattempted=0,score=0;
+        
+        for(let q=partConfig.start;q<=partConfig.end;q++){
+            if(reviewOnlyQs[q]) continue;
+            const sel=document.querySelector(`input[name="q${q}"]:checked`);
+            if(!sel){unattempted++;continue;}
+            if(sel.value===window.answerKey[q]){correct++;score+=partConfig.marks;}else{wrong++;score-=partConfig.marks*partConfig.neg_frac;}
+        }
+        const totalQuestions = partConfig.end - partConfig.start + 1;
+        return{correct,wrong,unattempted,score, totalQuestions};
+    }
+    document.getElementById('submitBtn').onclick=()=>{
+        clearInterval(timerInterval);
+        localStorage.removeItem(QUIZ_STATE_KEY);
+        var userEmail = window.quizUserEmail || "unknown";
+        var userName = window.quizUserName || "unknown";
+
+        const results = ALL_PARTS.map(part => scorePart(part));
+        const totalScore = results.reduce((acc, r) => acc + r.score, 0);
+        const maxTotal = ALL_PARTS.reduce((acc, p) => acc + (p.maxAttempt * p.marks), 0);
+        const percent=(totalScore/maxTotal)*100;
+        const grade=percent>=80?'Distinction':percent>=60?'First Class':percent>=40?'Second Class':'Fail';
+        
+        const pane=document.getElementById('resultPane');
+        pane.style.display='block';
+        let resultHTML = `<b>Name:</b> ${userName}<br><b>Email:</b> ${userEmail}<br>`;
+        results.forEach((r, i) => {
+            const partName = ALL_PARTS[i].name;
+            resultHTML += `<b>Part ${partName}</b>: ${r.correct}C, ${r.wrong}W, ${r.totalQuestions - r.correct - r.wrong}U → ${r.score.toFixed(2)}<br>`;
+        });
+        resultHTML += `<hr><b>Total</b>: ${totalScore.toFixed(2)} / ${maxTotal} (${percent.toFixed(2)}%) — ${grade}`;
+        pane.innerHTML = resultHTML;
+
+        const sheet=document.getElementById('responseSheet');sheet.style.display='block';
+        sheet.innerHTML='<h3>Response Sheet</h3>';
+        let responseText = `Quiz Response\nName: ${userName}\nEmail: ${userEmail}\nScore: ${totalScore.toFixed(2)} / ${maxTotal}\nGrade: ${grade}\n\nAnswers:\n`;
+        let totalQuestions = 120;
+        
+        for(let q=1;q<=totalQuestions;q++){
+            const sel=document.querySelector(`input[name="q${q}"]:checked`);
+            const correct=window.answerKey[q];
+            let line=`Q${q}: `;
+            ['A','B','C','D'].forEach(opt=>{
+                if(opt===correct) line+=opt+"(key) ";
+                else line+=opt+" ";
+            });
+            line += "Your: " + (sel?sel.value:"-");
+            responseText += line + "\n";
+            let htmlLine = `<div class="qline"><b>Q${q}:</b> `;
+            ['A','B','C','D'].forEach(opt=>{
+                let cls='opt';
+                if(opt===correct)cls+=' correct';
+                if(sel&&opt===sel.value&&opt!==correct)cls+=' wrong';
+                htmlLine+=`<span class="${cls}">${opt}</span>`;
+            });
+            htmlLine+='</div>';
+            sheet.innerHTML+=htmlLine;
+        }
+        let mailto = "mailto:ahamedizaz400@gmail.com?subject=" +
+            encodeURIComponent("Quiz Response from " + userName) +
+            "&body=" + encodeURIComponent(responseText);
+        document.getElementById('sendMailBtn').href = mailto;
+        document.getElementById('sendMailArea').style.display = 'block';
+        document.querySelectorAll('input,button').forEach(el=>{if(el.id!=='printBtn'&&el.id!=='pdfBtn'&&el.id!=='sendMailBtn')el.disabled=true;});
+    };
+    document.getElementById('printBtn').onclick=()=>window.print();
+    document.getElementById('pdfBtn').onclick=()=>{
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y=10;
+        doc.setFontSize(12);
+        doc.text("CSIR NET Response Sheet",10,y);y+=8;
+        const res=document.getElementById('resultPane').innerText.split('\n');
+        res.forEach(r=>{doc.text(r,10,y);y+=6;});
+        y+=6;doc.text("Response Sheet:",10,y);y+=8;
+        const lines=document.querySelectorAll('#responseSheet .qline');
+        lines.forEach(line=>{doc.text(line.innerText,10,y);y+=6;if(y>280){doc.addPage();y+=10;}});
+        doc.save('response_sheet.pdf');
+    };
+
+    function saveQuizState() {
+        if (!window.quizUserName) return; 
+
+        const state = {
+            userName: window.quizUserName,
+            userEmail: window.quizUserEmail,
+            timeLeft: endTime - Date.now(), // Save remaining milliseconds
+            answers: {},
+            qStates: {},
+            reviewOnly: reviewOnlyQs
+        };
+        
+        const totalQuestions = 120;
+        for (let q = 1; q <= totalQuestions; q++) {
+            const selected = getSelected(q);
+            if (selected) {
+                state.answers[q] = selected;
+            }
+            const qnoEl = document.querySelector(`.row[data-q="${q}"] .qno`);
+            const classList = qnoEl.className.split(' ');
+            const status = classList.filter(c => c !== 'qno').join(' ');
+
+            if(status) {
+                state.qStates[q] = { 
+                    status: status, 
+                    disabled: document.querySelector(`input[name="q${q}"]`).disabled 
+                };
+            }
+        }
+        localStorage.setItem(QUIZ_STATE_KEY, JSON.stringify(state));
+    }
+
+    function loadQuizState() {
+        const quizId = document.getElementById('quizIdInput').value.trim();
+        if (!quizId) return;
+        QUIZ_STATE_KEY = QUIZ_STATE_KEY_PREFIX + quizId;
+
+        const savedStateJSON = localStorage.getItem(QUIZ_STATE_KEY);
+        if (!savedStateJSON) return;
+
+        const state = JSON.parse(savedStateJSON);
+        if (!state.userName || state.userName !== window.quizUserName) return;
+
+        reviewOnlyQs = state.reviewOnly || {};
+        const totalQuestions = 120;
+        for (let q = 1; q <= totalQuestions; q++) {
+            if (state.answers[q]) {
+                document.querySelector(`input[name="q${q}"][value="${state.answers[q]}"]`).checked = true;
+            }
+            if (state.qStates[q]) {
+                setQnoColor(q, state.qStates[q].status);
+                if (state.qStates[q].disabled) {
+                    document.querySelectorAll(`input[name="q${q}"]`).forEach(r => r.disabled = true);
+                }
+                
+                let box = document.getElementById('reviewBox'+q);
+                let statusClasses = state.qStates[q].status.split(' ');
+                
+                if (statusClasses.includes('blue')) {
+                    showReviewBox(q, "Submitted and locked. Your answer: " + (state.answers[q] || "Not Attempted"));
+                    box.style.background = '#dcfce7'; box.style.color = 'var(--text)';
+                } else if (statusClasses.includes('green')) {
+                    showReviewBox(q, "Review and Lock");
+                    box.style.background = 'skyblue'; box.style.color = 'var(--text)';
+                } else if (statusClasses.includes('yellow')) {
+                     showReviewBox(q, "Review");
+                    box.style.background = '#fef9c3'; box.style.color = 'var(--text)';
+                }
+            }
+        }
+        updateCounts();
+    }
+    
+    function buildQuestionPalette() {
+        const createPalette = (partConfig, containerId) => {
+            const palette = document.getElementById(containerId);
+            for (let i = partConfig.start; i <= partConfig.end; i++) {
+                const item = document.createElement('div');
+                item.className = 'palette-item';
+                item.textContent = i;
+                item.id = `q-palette-${i}`;
+                item.onclick = () => jumpToQuestion(i);
+                palette.appendChild(item);
+            }
+        };
+
+        createPalette(PART_A, 'palette-A');
+        createPalette(PART_B, 'palette-B');
+        createPalette(PART_C, 'palette-C');
+    }
+
+    function jumpToQuestion(q) {
+        const questionRow = document.querySelector(`.row[data-q="${q}"]`);
+        if (questionRow) {
+            questionRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    function jumpToPart(partId) {
+        const partHeading = document.getElementById(partId + 'Heading');
+        if (partHeading) {
+            partHeading.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function setupPaletteObserver() {
+        const observer = new IntersectionObserver((entries) => {
+            let bestEntry = null;
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    if (!bestEntry || entry.intersectionRatio > bestEntry.intersectionRatio) {
+                        bestEntry = entry;
+                    }
+                }
+            });
+
+            if (bestEntry) {
+                const part = bestEntry.target.dataset.part;
+                const paletteId = `palette-${part}`;
+                if (!document.getElementById(paletteId).classList.contains('active')) {
+                    document.querySelectorAll('.question-palette').forEach(p => p.classList.remove('active'));
+                    document.getElementById(paletteId).classList.add('active');
+                }
+            }
+        }, { 
+            root: document.getElementById('omr'), 
+            threshold: Array.from({length: 101}, (_, i) => i / 100)
+        });
+
+        document.querySelectorAll('.omr h2').forEach(header => {
+            observer.observe(header);
+        });
+    }
+
+    // --- Initial Load ---
+    window.onload = function() {
+        // Functions are now called dynamically after quiz data is fetched.
+    };
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</body>
+</html>            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+        button, a.button{padding:8px 10px;border-radius:8px;border:1px solid #e6eef8;background:#fff;cursor:pointer;font-weight:600;text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:8px}
+        button:disabled { background-color: #e0e7ff; cursor: not-allowed; }
+        .primary{background:var(--accent);color:#fff;border-color:transparent}
+        .danger{background:var(--bad);color:#fff;border-color:transparent}
+        .ghost{background:#fff;color:var(--text)}
+        .blue-btn{background:var(--ok)!important;color:#fff!important;}
+        .yellow-btn{background:var(--yellow)!important;color:#fff!important;}
+        .green-btn{background:var(--green)!important;color:#fff!important;}
+        .red-btn{background:var(--bad)!important;color:#fff!important;}
+        .omr{border-top:1px solid #eef2f7;padding-top:12px;display:block;height:75vh;overflow:auto;padding-right: 10px;}
+        .row{display:flex; flex-direction: column; align-items: flex-start; gap:10px;padding:12px;border-radius:6px;border:1px solid #f1f5f9;background:#fcfeff;margin-bottom:4px;}
+        .row-header { display: flex; align-items: center; width: 100%; gap: 10px; }
+        .qno{width:56px; text-align:center;font-weight:700;color:blue;transition:background 0.2s, color 0.2s; flex-shrink: 0;}
+        .qno.answered{background:var(--answered);color:#fff;}
+        .qno.blue{background:var(--ok);color:#fff;}
+        .qno.yellow{background:var(--yellow);color:#fff;}
+        .qno.green{background:var(--green);color:#fff;}
+        .qno.red{background:var(--bad);color:#fff;}
+        .bubbles{display:flex;gap:10px;align-items:center}
+        .bubble{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid #e6eef8;background:#fff;cursor:pointer;font-weight:600}
+        input[type="radio"]{accent-color:var(--accent);width:18px;height:18px}
+        .question-content { width: 100%; margin-bottom: 8px; padding-bottom: 10px; border-bottom: 1px solid #eef2f7; font-size: 16px; }
+        .question-content img { max-width: 100%; height: auto; border-radius: 6px; margin-top: 8px; }
+        .question-controls{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+        .review-box{background:#eef7ff;padding:7px 12px;border-radius:7px;font-size:14px;margin-top:4px; width: 100%;}
+        .part-summary { display: flex; gap: 10px; justify-content: center; margin-top: 16px; margin-bottom: 16px; padding: 10px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #eef2f7; flex-wrap: wrap; }
+        .part-summary .card { padding: 8px 12px; border-radius: 6px; background: #fff; font-size: 14px; text-align: center; border: 1px solid #e2e8f0; min-width: 120px; }
+        .part-summary .card strong { display: block; font-weight: 600; color: var(--muted); margin-bottom: 4px; font-size: 12px; }
+        .part-summary .card span { font-size: 18px; font-weight: 700; color: var(--accent); }
+        #student-info { padding: 10px; background-color: #f8fafc; border-radius: 8px; margin-bottom: 12px; font-size: 14px; border: 1px solid #eef2f7; }
+        #part-nav { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        #part-nav button { flex: 1; background-color: magenta; color: white; border-color: magenta; }
+        .question-palette { display: none; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; padding: 10px; margin-top: 16px; border: 1px solid #eef2f7; border-radius: 8px; }
+        .question-palette.active { display: grid; }
+        .palette-item { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #fff; }
+        .palette-item.answered { background-color: var(--answered); color: #fff; border-color: var(--answered); }
+        .palette-item.blue { background-color: var(--ok); color: #fff; border-color: var(--ok); }
+        .palette-item.yellow { background-color: var(--yellow); color: #fff; border-color: var(--yellow); }
+        .palette-item.green { background-color: var(--green); color: #fff; border-color: var(--green); }
+        
+        .result{margin-top:12px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7}
+        #responseSheet{margin-top:16px;padding:10px;border-radius:8px;background:#fff;border:1px solid #eef2f7;display:none}
+        #responseSheet .qline{margin-bottom:6px;font-size:14px}
+        #responseSheet .opt{display:inline-block;margin-right:8px;padding:4px 10px;border-radius:6px;border:1px solid #ccc}
+        #responseSheet .correct{background:var(--ok);color:#fff;border-color:var(--ok)}
+        #responseSheet .wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+        #sendMailBtn {margin-top:18px;padding:11px 20px;font-size:18px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;}
+        #emailOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(246,248,251, 0.96); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        #emailBox { background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 2px 10px #0002; max-width: 320px; width: 100%; text-align: center; }
+        #emailBox input { width: 90%; margin-top: 10px; padding: 8px; font-size: 16px;}
+        #emailBox button { margin-top: 16px; width: 100%; }
+        #emailBox .error { color: var(--bad); margin-top: 8px; }
+        @media print{
+            body{background:white;margin:0}
+            .container{box-shadow:none;border-radius:0;padding:8px;max-width:100%}
+            .controls, .summary, .omr, #timer, #sendMailBtn, .part-summary, #part-nav, .question-palette, .right-sidebar {display:none}
+            #responseSheet{display:block !important}
+            #emailOverlay{display:none !important;}
+        }
+    </style>
+</head>
+<body>
+<div id="emailOverlay">
+    <div id="emailBox">
+        <h2>Enter Student Details</h2>
+        <input type="text" id="userName" placeholder="Your Name" required>
+        <input type="email" id="userEmail" placeholder="example@gmail.com" required>
+        <input type="text" id="quizIdInput" placeholder="Enter Quiz ID" required>
+        <button id="startQuizBtn" disabled>Connecting...</button>
+        <div class="error" id="overlayError" style="display:none;"></div>
+    </div>
+</div>
+<div class="container" style="display:none;">
+    <div class="quiz-layout">
+        <div class="main-content">
+            <h1 id="quizTitle">CSIR NET — OMR Style</h1>
+            <p id="quizLead" class="lead">Attempt limits: Part A ≤ 15, Part B ≤ 35, Part C ≤ 25. Negative marking: 25%.</p>
+             <div class="controls">
+                <button id="clearAll" class="ghost">Clear All</button>
+                <button id="markAllReview" class="ghost">Mark All Review</button>
+                <button id="submitBtn" class="primary">Submit & Evaluate</button>
+                <button id="printBtn" class="ghost">Print</button>
+                <button id="pdfBtn" class="ghost">Download PDF</button>
+            </div>
+            <div class="omr" id="omr">
+                <h2 id="partAHeading" data-part="A">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part A
+                </h2>
+                <div id="partA"></div>
+                <div class="part-summary" id="partASummary"></div>
+                <h2 id="partBHeading" data-part="B">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part B
+                </h2>
+                <div id="partB"></div>
+                <div class="part-summary" id="partBSummary"></div>
+                <h2 id="partCHeading" data-part="C">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Part C
+                </h2>
+                <div id="partC"></div>
+                <div class="part-summary" id="partCSummary"></div>
+            </div>
+            <div id="resultPane" class="result" style="display:none"></div>
+            <div id="responseSheet"></div>
+            <div id="sendMailArea" style="display:none;text-align:center;">
+                <a id="sendMailBtn" href="#" target="_blank">Send Response Sheet to Teacher</a>
+            </div>
+        </div>
+        <div class="right-sidebar">
+            <div id="student-info"></div>
+            <div id="notification" style="display: none; padding: 10px; margin-bottom: 12px; border-radius: 8px; color: white; font-weight: bold; text-align: center;"></div>
+            <div id="timer" style="font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:12px;">
+                Time Left: <span id="timeDisplay">--:--:--</span>
+            </div>
+            <div id="part-nav">
+                <button onclick="jumpToPart('partA')">Part A</button>
+                <button onclick="jumpToPart('partB')">Part B</button>
+                <button onclick="jumpToPart('partC')">Part C</button>
+            </div>
+            <div id="palette-container">
+                <h3>Question Palette</h3>
+                <div class="question-palette" id="palette-A"></div>
+                <div class="question-palette" id="palette-B"></div>
+                <div class="question-palette" id="palette-C"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // --- Your Unique Firebase Configuration ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCtqTUgcNmEVpomhPOozHA_3iw4ZnaCJug",
+      authDomain: "quiz-3d72e.firebaseapp.com",
+      projectId: "quiz-3d72e",
+      storageBucket: "quiz-3d72e.appspot.com",
+      messagingSenderId: "843152315174",
+      appId: "1:843152315174:web:e90ae825078e7d0c7ae7e7",
+      measurementId: "G-L0J0BQP3QS"
+    };
+    // --- END OF FIREBASE CONFIGURATION ---
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const startQuizBtn = document.getElementById('startQuizBtn');
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            console.log("Anonymous user signed in:", user.uid);
+            startQuizBtn.disabled = false;
+            startQuizBtn.textContent = 'Start Quiz';
+            startQuizBtn.onclick = () => showQuiz(user);
+        }
+    });
+
+    signInAnonymously(auth).catch(err => {
+        const errorBox = document.getElementById('overlayError');
+        errorBox.textContent = "Could not connect to the server. Please refresh.";
+        errorBox.style.display = 'block';
+    });
+
+    async function showQuiz(user) {
+        const name = document.getElementById('userName').value.trim();
+        const email = document.getElementById('userEmail').value.trim();
+        const quizId = document.getElementById('quizIdInput').value.trim();
+        const errorBox = document.getElementById('overlayError');
+        
+        const ADMIN_EMAIL = "ahamedizaz400@gmail.com";
+
+        if(!name) { errorBox.textContent = "Please enter your name."; errorBox.style.display = "block"; return; }
+        if(!email.match(/^[a-zA-Z0-9._%+-]+@gmail\.com$/)) { errorBox.textContent = "Please enter a valid Gmail address."; errorBox.style.display = "block"; return; }
+        if(!quizId) { errorBox.textContent = "Please enter a Quiz ID."; errorBox.style.display = "block"; return; }
+        
+        errorBox.style.display = "none";
+        startQuizBtn.disabled = true;
+        startQuizBtn.textContent = "Loading...";
+
+        try {
+            if (!user) {
+                throw new Error("Not authenticated. Please refresh the page.");
+            }
+
+            const quizDocRef = doc(db, "quizzes", quizId);
+            const quizDoc = await getDoc(quizDocRef);
+            if (!quizDoc.exists()) {
+                throw new Error("Invalid Quiz ID. Please check and try again.");
+            }
+            const quizData = quizDoc.data();
             // This is the CRITICAL CHANGE: The app now uses a static config object.
             window.quizConfig = {
                 totalTime: 180,
@@ -808,3 +1519,4 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
+
